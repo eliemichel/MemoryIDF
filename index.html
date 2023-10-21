@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Memory pour le Grand Paris</title>
+
+	<script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
+	<link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet" />
+	<script src="fuzzysort.min.js"></script>
+	<script src="fuzzyset.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+
+	<style type="text/css">
+		body {
+			font-family: "Helvetica", sans-serif;
+		}
+
+		#map-container {
+			width: 70%;
+			position: absolute;
+			left: 0;
+			top: 0;
+		}
+
+		#map {
+			width: 100%;
+			height: 100vh;
+			position: absolute;
+			left: 0;
+			top: 0;
+		}
+
+		#overlay {
+			width: 100%;
+			height: 100vh;
+			position: absolute;
+			left: 0;
+			top: 0;
+			pointer-events: none;
+		}
+		#overlay > div {
+			pointer-events: auto;
+		}
+
+		#search-input-container {
+			position: relative;
+			width: 100%;
+			max-width: 30em;
+			margin: 1.5em auto;
+		}
+
+		#search-input {
+			display: block;
+			box-sizing: border-box;
+			width: 100%;
+			height: 2.5em;
+			margin: 0;
+			padding: 0.8em;
+			pointer-events: auto;
+
+			font-size: 1.2em;
+			box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+			border-radius: 1em;
+  			border: 1px solid #ccc;
+		}
+
+		#search-loader {
+			position: absolute;
+			width: 1.2em;
+			height: 1.2em;
+			right: 0.6em;
+			top: 0.6em;
+			border: 0.3em solid #00000020;
+			border-radius: 100%;
+			clip-path: polygon(0% 0%, 70% 0%, 50% 50%, 0% 70%);
+			animation: 1s linear 0s infinite normal spin;
+		}
+		@keyframes spin {
+			from { transform: rotate(0deg); }
+			to { transform: rotate(360deg); }
+		}
+
+		#scoreboard {
+			box-sizing: border-box;
+			position: absolute;
+			right: 0;
+			top: 0;
+			width: 30%;
+			height: 100vh;
+			background-color: #b7c8d9;
+			padding: 1em 1.5em;
+			overflow-y: scroll;
+		}
+
+		#scoreboard > hr {
+			border: none;
+			height: 3px;
+			border-radius: 2px;
+			background-color: #a7bcd0;
+			margin: 1em 0;
+		}
+
+		#stats > ul,
+		#counts {
+			margin: 0;
+			padding: 0;
+			list-style-type: none;
+		}
+
+		#counts li {
+			text-transform: uppercase;
+			color: #155a9f;
+		}
+		#counts li:nth-child(2) {
+			font-size: 0.9em;
+		}
+
+		#menu button {
+			border: 0;
+			cursor: pointer;
+			margin: 0;
+			margin-top: 1em;
+		}
+
+		#found {
+			margin: 0;
+			padding: 0;
+			list-style-type: none;
+		}
+
+		#found li {
+			display: block;
+			padding: 0.7em 1em;
+			margin: 0.5em 0;
+			border-radius: 0.3em;
+			font-weight: bold;
+			overflow: hidden;
+		}
+		#found li:hover {
+			background: #a7bcd0;
+			cursor: pointer;
+		}
+		#found li.new {
+			animation: 0.2s ease-out 0s 1 normal reveal;
+		}
+		@keyframes reveal {
+			from { max-height: 0em; padding: 0 1em; }
+			to { max-height: 2.5em; padding: 0.7em 1em; }
+		}
+
+		.percentage {
+			font-weight: bold;
+			font-size: 1.25em;
+		}
+		.percentage::after {
+			font-weight: normal;
+			margin-left: 0.1em;
+			content: '%';
+		}
+	</style>
+</head>
+<body>
+	<main>
+		<div id="map-container">
+			<div id="map"></div>
+			<div id="overlay">
+				<form id="search-form" action="javascript:void(0);">
+					<div id="search-input-container">
+						<input id="search-input" type="text" name="guess" placeholder="Entrez le nom d'une commune ou gare" disabled />
+						<div id="search-loader"><div></div></div>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<div id="scoreboard">
+			<div id="stats">
+				<ul>
+					<li><span class="percentage" id="stat-communes">X</span> de communes trouvées</li>
+					<li><span class="percentage" id="stat-surface">X</span> d'hectares trouvés</li>
+					<li><span class="percentage" id="stat-inhabitants">X</span> d'habitants trouvés</li>
+					<li><span class="percentage" id="stat-stations">X</span> de gares trouvées</li>
+				</ul>
+			</div>
+			<div id="menu">
+				<button id="btn-export">Export</button>
+				<button id="btn-import">Import</button>
+			</div>
+			<hr />
+			<div>
+				<ul id="counts">
+					<li><span id="count-stations">X</span> gares</li>
+					<li><span id="count-communes">X</span> communes (<span id="count-surface">X</span> ha, <span id="count-inhabitants">X</span> k habitants)</li>
+				</ul>
+
+				<ul id="found">
+					<li>foo</li>
+				</ul>
+			</div>
+		</div>
+	</main>
+
+	<script>
+// NB: Variable starting with $ are promises.
+mapboxgl.accessToken = 'pk.eyJ1IjoiZWxpZW1pY2hlbCIsImEiOiJjbG56d2wydHgxN3ppMmtxb3ByMjhkdW82In0.iDZGP4LZtOPIYgr1XdqY5w';
+
+const map = new mapboxgl.Map({
+	container: 'map',
+	style: 'mapbox://styles/eliemichel/clnzwjzoj007i01qxg4vcf4m0',
+	center: [2.3522, 48.8566],
+	maxBounds: [
+		[0.75, 47.8566],
+		[4.0, 49.8566]
+	],
+	zoom: 9.5,
+});
+
+// This is the only place where user data is stored
+const state = {
+	// Elements that have been found by the user
+	found: [],
+
+	// Temporary state that does not need to be serialized
+	loading: true,
+
+	// Values that can be recomputed at any time from the rest of the state
+	cache: {
+		counts: { // raw values
+			communes: 0,
+			surface: 0, // in hectare
+			inhabitants: 0, // in thousands of people
+			stations: 0,
+		},
+		stats: { // percentages
+			communes: 0.0,
+			surface: 0.0,
+			inhabitants: 0.0,
+			stations: 0.0,
+		},
+		totalCounts: { // from data loader
+			communes: -1,
+			surface: -1, // in hectare
+			inhabitants: -1, // in thousands of people
+			stations: -1,
+		},
+		foundKeys: {}, // speed up duplicate detection
+
+		// We accumulate here the stations we find
+		foundStationsGeojson: {
+			type: "FeatureCollection",
+			features: [],
+		},
+	}
+};
+
+const $DOMContentLoaded = new Promise((resolve) => {
+	document.addEventListener('DOMContentLoaded', resolve);
+});
+
+const $mapLoaded = new Promise((resolve) => {
+	map.on('load', resolve);
+});
+
+// Whenever DOM is ready, we get all the elements we eventually need to update.
+const $dom = $DOMContentLoaded.then(() => {
+	return [
+		"search-input",
+		"search-form",
+		"search-loader",
+		"scoreboard",
+		"btn-export",
+		"btn-import",
+		"found",
+		"stat-communes",
+		"stat-surface",
+		"stat-inhabitants",
+		"stat-stations",
+		"count-communes",
+		"count-surface",
+		"count-inhabitants",
+		"count-stations",
+	].reduce((acc, item) => {
+		acc[item] = document.getElementById(item);
+		return acc;
+	}, {});
+});
+
+// Unlike a typical Reduc pattern, actions are not pure.
+// We implement this pattern in case we eventually need it, but as long as
+// there is nothing like undo/redo system we do not need multiple copies of the
+// state so everything can happen in place.
+const Action = {
+	InitializeStationCache: (stations) => (dom, state) => {
+		state.cache.totalCounts.stations = stations.features.length;
+		state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
+		renderScoreboard(dom, state, 0);
+	},
+
+	StartLoading: () => (dom, state) => {
+		state.loading = true;
+		renderSearchForm(dom, state);
+	},
+
+	StopLoading: () => (dom, state) => {
+		state.loading = false;
+		renderSearchForm(dom, state);
+	},
+
+	AppendFoundStationItem: (item, geoFeature) => (dom, state) => {
+		if (state.cache.foundKeys[item.id]) return; // TODO trigger "déjà trouvé"
+		state.cache.foundKeys[item.id] = true;
+
+		state.found = [
+			item,
+			...state.found
+		];
+		++state.cache.counts.stations;
+		state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
+		renderScoreboard(dom, state, 0);
+
+		// Update map
+		state.cache.foundStationsGeojson.features.push(
+			geoFeature
+		);
+		map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
+
+		localStorage.setItem("savedState", JSON.stringify(state));
+	},
+
+	// This loads a brand new state and recomputes the cached values
+	// NB: This also has the effect of StopLoading after loading state
+	LoadState: (newState, stations) => (dom, state) => {
+		state.found = newState.found;
+		state.cache = {
+			counts: { // raw values
+				communes: 0,
+				surface: 0, // in hectare
+				inhabitants: 0, // in thousands of people
+				stations: 0,
+			},
+			stats: { // percentages
+				communes: 0.0,
+				surface: 0.0,
+				inhabitants: 0.0,
+				stations: 0.0,
+			},
+			totalCounts: { // from data loader
+				communes: -1,
+				surface: -1, // in hectare
+				inhabitants: -1, // in thousands of people
+				stations: stations.features.length,
+			},
+			foundKeys: {}, // speed up duplicate detection
+
+			// We accumulate here the stations we find
+			foundStationsGeojson: {
+				type: "FeatureCollection",
+				features: [],
+			},
+		};
+		// Build a temporary mapping from id to geoFeatures
+		const stationIdToIndex = {};
+		stations.features.map((entry, index) => {
+			stationIdToIndex[entry.properties.id_gares] = index;
+		});
+
+		state.found.map(item => {
+			if (item.id[0] === 'STATION') {
+				state.cache.foundKeys[item.id] = true;
+				const stationIndex = stationIdToIndex[item.id[1]];
+				state.cache.foundStationsGeojson.features.push(
+					stations.features[stationIndex]
+				);
+				++state.cache.counts.stations;
+				state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
+			}
+		});
+
+		const src = map.getSource('found-stations');
+		if (src) { // may not be loaded yet
+			src.setData(state.cache.foundStationsGeojson);
+		}
+
+		renderScoreboard(dom, state);
+
+		state.loading = false;
+		renderSearchForm(dom, state);
+
+		localStorage.setItem("savedState", JSON.stringify(state));
+	},
+};
+function dispatch(dom, action) {
+	action(dom, state);
+}
+
+// Render functions are responsible for updating the DOM
+function renderScoreboard(dom, state, newIndex) {
+	dom.found.innerHTML = state.found.reduce((acc, item, index) => {
+		const className = index == newIndex ? "new" : "";
+		return acc + `<li class="${className}" title="Trouvé le XXX à XXXh">${item.name}</li>`;
+	}, "");
+
+	dom["stat-communes"].innerText = state.cache.stats.communes.toFixed(1);
+	dom["stat-surface"].innerText = state.cache.stats.surface.toFixed(1);
+	dom["stat-inhabitants"].innerText = state.cache.stats.inhabitants.toFixed(1);
+	dom["stat-stations"].innerText = state.cache.stats.stations.toFixed(1);
+
+	dom["count-communes"].innerText = state.cache.counts.communes;
+	dom["count-surface"].innerText = state.cache.counts.surface.toFixed(1);
+	dom["count-inhabitants"].innerText = state.cache.counts.inhabitants.toFixed(1);
+	dom["count-stations"].innerText = state.cache.counts.stations;
+}
+
+function renderSearchForm(dom, state) {
+	const input = dom["search-input"];
+	const loader = dom["search-loader"];
+	const wasDisabled = input.disabled;
+	input.disabled = state.loading;
+	if (wasDisabled && !input.disabled) {
+		//input.selectionStart = 0;
+		//input.selectionEnd = input.value.length;
+		input.focus();
+	}
+	loader.style.visibility = state.loading ? "visible" : "hidden";
+}
+
+// Utility function to create and download a file
+function exportFile(filename, text) {
+	var element = document.createElement('a');
+	element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+	element.setAttribute('download', filename);
+
+	element.style.display = 'none';
+	document.body.appendChild(element);
+
+	element.click();
+
+	document.body.removeChild(element);
+}
+
+// Open a file browser to load a json file
+function importJsonFile() {
+	return new Promise((resolve, reject) => {
+		const element = document.createElement('input');
+		element.setAttribute('type', 'file');
+		element.setAttribute('accept', '*.json');
+		element.addEventListener("change", event => {
+			const reader = new FileReader();
+			reader.addEventListener('load', () => {
+				resolve(JSON.parse(reader.result));
+			});
+			reader.readAsText(element.files[0]);
+		}, false);
+
+		element.style.display = 'none';
+		document.body.appendChild(element);
+		element.click();
+		document.body.removeChild(element);
+	});
+}
+
+// Start fetching data right away
+const dataLoader = {
+	$traces:
+		fetch('traces-du-reseau-ferre-idf.geojson')
+		.then(response => response.json()),
+
+	$stations:
+		fetch('emplacement-des-gares-idf.geojson')
+		.then(response => response.json()),
+
+	// Post-operations are populated below because the rely on other members of
+	// the dataLoader.
+
+	// Metadata about train lines
+	$trainline: null,
+
+	// Names to be guessed
+	$memory: null,
+
+	// Adding a color to each station
+	$coloredStations: null,
+};
+
+// Add post-loading operations
+dataLoader.$trainline = dataLoader.$traces.then(traces => {
+	return traces.features.reduce((acc, item) => {
+		const props = item.properties;
+		const key = [props.mode, props.indice_lig];
+		acc[key] = {
+			color: "#" + props.colourweb_hexa,
+			logo: props.picto_final,
+		};
+		return acc;
+	}, {});
+});
+
+dataLoader.$coloredStations = Promise.all([dataLoader.$stations, dataLoader.$trainline])
+.then(([stations, trainline]) => {
+	return {
+		...stations,
+		features: stations.features.map(item => ({
+			...item,
+			properties: {
+				...item.properties,
+				color: (
+					trainline[[item.properties.mode, item.properties.indice_lig]]
+					|| {color: "#ff8888"}
+					).color,
+			}
+		}))
+	};
+});
+
+// Structure hiding the mechanism through which we fix small typos in user guesses
+class MemoryEngine {
+	constructor() {
+		this.data = {}; // naive baseline
+		this.targets = []; // using https://github.com/farzher/fuzzysort
+		this.list = []; // using https://www.fusejs.io
+		this.keys = []; // using https://github.com/Glench/fuzzyset.js
+	}
+
+	insert(key, value) {
+		const nkey = this._normalizeKey(key);
+		this.data[nkey] = value;
+		this.targets.push({
+			key: fuzzysort.prepare(nkey),
+			value
+		});
+		this.list.push({
+			key: nkey,
+			value
+		});
+		this.keys.push(nkey);
+	}
+
+	// This is called after all insert and before all search
+	freeze() {
+		const fuseOptions = {
+			// isCaseSensitive: false,
+			includeScore: true,
+			// shouldSort: true,
+			// includeMatches: false,
+			// findAllMatches: false,
+			// minMatchCharLength: 1,
+			location: 0,
+			// threshold: 0.6,
+			distance: 0,
+			// useExtendedSearch: false,
+			// ignoreLocation: false,
+			// ignoreFieldNorm: false,
+			// fieldNormWeight: 1,
+			keys: [ "key" ]
+		};
+		this.fuse = new Fuse(this.list, fuseOptions); // using https://www.fusejs.io
+
+		this.fuzzyset = FuzzySet(this.keys);
+	}
+
+	search(query) {
+		return new Promise((resolve, reject) => {
+			const nkey = this._normalizeKey(query);
+			console.log(nkey);
+
+			// naive baseline
+			//resolve(this.data[nkey]);
+
+			// fuzzysort
+			//const results = fuzzysort.go(nkey, this.targets, {
+			//	key: "key",
+			//	limit: 10,
+			//	//threshold: -10000, // don't return bad results
+			//});
+			//console.log(results);
+			//resolve(results.length > 0 ? results[0].obj : undefined);
+
+			// fuse
+			//const results = this.fuse.search(nkey, { limit: 10 });
+			//console.log(results);
+			//resolve(results.length > 0 ? results[0].item : undefined);
+
+			// fuzzyset
+			const results = this.fuzzyset.get(nkey, null, 0.9);
+			if (results == null) resolve(null);
+			else resolve(this.data[results[0][1]]);
+		});
+	}
+
+	_normalizeKey(str) {
+		return str
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.replace(/-/g, ' ')
+			.replace(/\s+/g, ' ')
+			.toLowerCase();
+	}
+}
+
+// Add post-loading operations
+dataLoader.$memory = dataLoader.$stations.then(stations => {
+	const engine = new MemoryEngine();
+	stations.features.map((item, index) => {
+		const props = item.properties;
+		const payload = {
+			type: 'STATION',
+			index
+		};
+		// nom de gare seul:
+		engine.insert(props.nom_gares, payload);
+		engine.insert(props.nom_iv, payload);
+		// nom + sous titre (possible de deviner mais bon courage):
+		engine.insert(props.nom_zdc, payload);
+	});
+	engine.freeze();
+	return engine;
+});
+
+$dom.then(dom => {
+	renderScoreboard(dom, state);
+	renderSearchForm(dom, state);
+});
+
+Promise.all([$dom, dataLoader.$coloredStations])
+.then(([dom, stations]) => {
+	const savedStateJson = localStorage.getItem("savedState");
+	if (savedStateJson !== null) {
+		let savedState;
+		try {
+			savedState = JSON.parse(savedStateJson);
+		} catch (e) {
+			console.log("Invalid saved state:");
+			console.log(e);
+			return;
+		}
+		dispatch(dom, Action.LoadState(savedState, stations));
+	}
+
+	dom["btn-export"].addEventListener('click', () => {
+		exportFile("memory-pour-idf.json", JSON.stringify({
+			...state,
+			cache: null,
+		}, null, 2));
+	});
+	dom["btn-import"].addEventListener('click', () => {
+		dispatch(dom, Action.StartLoading());
+		importJsonFile()
+		.then((json) => {
+			dispatch(dom, Action.LoadState(json, stations));
+		});
+	});
+});
+
+const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$coloredStations])
+.then(([dom, memory, stations]) => {
+	// We can now add the search event handler
+	dom["search-form"].addEventListener('submit', () => {
+		if (state.loading) return;
+		const query = dom["search-input"].value;
+
+		dispatch(dom, Action.StartLoading());
+
+		memory.search(query).then(result => {
+			if (result == null) {
+				console.log("Not found!");
+			} else {
+				console.log("Found!");
+				if (result.type == 'STATION') {
+					const props = stations.features[result.index].properties;
+					dispatch(dom, Action.AppendFoundStationItem({
+						id: ['STATION', props.id_gares],
+						name: props.nom_zdc,
+					}, stations.features[result.index]));
+				}
+			}
+
+			dispatch(dom, Action.StopLoading());
+		});
+	});
+
+	dispatch(dom, Action.InitializeStationCache(stations));
+	dispatch(dom, Action.StopLoading());
+
+	// Test
+	console.log(memory);
+	memory.search("Pont du Garigliano").then(console.log);
+	memory.search("Pont du garigliano").then(console.log);
+	memory.search("Pont do garigliano").then(console.log);
+});
+
+Promise.all([$mapLoaded, dataLoader.$traces])
+.then(([_, traces]) => {
+
+	map.addSource('traces', {
+		'type': 'geojson',
+		'data': traces
+	});
+
+	// Add a symbol layer showing all train lines
+	map.addLayer({
+		'id': 'line-train',
+		'type': 'line',
+		'source': 'traces',
+		"paint": {
+			"line-color": ["concat", "#", ["get", "colourweb_hexa"]],
+			"line-width": 3,
+			"line-offset": 0, // TODO: add offset in data for overlapping lines
+		}
+	});
+
+	// When a click event occurs on a train line, open a popup at the
+	// location of the feature, with description HTML from its properties.
+	map.on('click', 'line-train', (e) => {
+		// Copy coordinates array.
+		const coordinates = e.features[0].geometry.coordinates.slice();
+		const props = e.features[0].properties;
+
+		// Ensure that if the map is zoomed out such that multiple
+		// copies of the feature are visible, the popup appears
+		// over the copy being pointed to.
+		while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+		}
+
+		const description = `
+		<img src="${props.picto_final}" alt="logo" style="max-width: 30%;" />
+		<ul>
+		<li>exploitant: ${props.exploitant}</li>
+		<li>idf: ${props.idf != 0}</li>
+		<li>indice_lig: ${props.indice_lig}</li>
+		<li>metro: ${props.metro != 0}</li>
+		<li>mode: ${props.mode}</li>
+		<li>rer: ${props.rer != 0}</li>
+		<li>res_com: ${props.res_com}</li>
+		<li>reseau: ${props.reseau}</li>
+		<li>train: ${props.train != 0}</li>
+		<li>tramway: ${props.tramway != 0}</li>
+		<li>(orly?)val: ${props.val != 0}</li>
+		</ul>
+		`;
+
+		new mapboxgl.Popup()
+			.setLngLat(e.lngLat)
+			.setHTML(description)
+			.addTo(map);
+	});
+
+	// Change the cursor to a pointer when the mouse is over the train line layer.
+	map.on('mouseenter', 'line-train', () => {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+
+	// Change it back to a pointer when it leaves.
+	map.on('mouseleave', 'line-train', () => {
+		map.getCanvas().style.cursor = '';
+	});
+});
+
+Promise.all([$mapLoaded, dataLoader.$coloredStations])
+.then(([_, stations, trainline]) => {
+
+	// Add a GeoJSON source containing place coordinates and information.
+	map.addSource('stations', {
+		'type': 'geojson',
+		'data': stations
+	});
+
+	// Add a symbol layer showing all train stations before they are found
+	map.addLayer({
+		'id': 'pending-stations',
+		'type': 'circle',
+		'source': 'stations',
+		'minzoom': 11,
+		'paint': {
+			//'circle-color': ['get', 'color'],
+			'circle-radius': 3,
+			//'circle-stroke-color': '#000000',
+			//'circle-stroke-width': 1,
+			'circle-color': '#ffffff',
+			'circle-opacity': 1.0,
+		}
+	});
+
+	map.addSource('found-stations', {
+		'type': 'geojson',
+		'data': state.cache.foundStationsGeojson,
+	});
+
+	// Add a symbol layer showing all train stations that have been found
+	map.addLayer({
+		'id': 'found-stations',
+		'type': 'circle',
+		'source': 'found-stations',
+		'paint': {
+			'circle-radius': 5,
+			//'circle-stroke-color': '#000000',
+			//'circle-stroke-width': 1,
+			'circle-color': ['get', 'color'],
+			//'circle-color': '#ffffff',
+		}
+	});
+	map.addLayer({
+		'id': 'found-stations-labels',
+		'type': 'symbol',
+		'source': 'found-stations',
+		'layout': {
+			'text-anchor': 'bottom',
+			'text-offset': [0, -0.5],
+			'text-field': ['get', 'nom_zdc'],
+		}
+	});
+
+	// When a click event occurs on a train station, open a popup at the
+	// location of the feature, with description HTML from its properties.
+	map.on('click', 'found-stations', (e) => {
+		// Copy coordinates array.
+		const coordinates = e.features[0].geometry.coordinates.slice();
+		const props = e.features[0].properties;
+		console.log(props);
+
+		// Ensure that if the map is zoomed out such that multiple
+		// copies of the feature are visible, the popup appears
+		// over the copy being pointed to.
+		while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+		}
+
+		const description = `
+		<img src="${props.picto}" alt="logo" style="max-width: 30%;" />
+		<ul>
+		<li>exploitant: ${props.exploitant}</li>
+		<li>idf: ${props.idf != 0}</li>
+		<li>indice_lig: ${props.indice_lig}</li>
+		<li>mode: ${props.mode}</li>
+		<li>nom_gares: ${props.nom_gares}</li>
+		<li>nom_iv: ${props.nom_iv}</li>
+		<li>nom_so_gar: ${props.nom_so_gar}</li>
+		<li>nom_zda: ${props.nom_zda}</li>
+		<li>nom_zdc: ${props.nom_zdc}</li>
+		<li>principal: ${props.principal != 0}</li>
+		<li>res_com: ${props.res_com}</li>
+		<li>metro: ${props.termetro != "0"}</li>
+		<li>rer: ${props.terrer != "0"}</li>
+		<li>train: ${props.tertrain != "0"}</li>
+		<li>tramway: ${props.tertram != "0"}</li>
+		<li>val: ${props.terval != "0"}</li>
+		</ul>
+		`;
+
+		new mapboxgl.Popup()
+			.setLngLat(coordinates)
+			.setHTML(description)
+			.addTo(map);
+	});
+
+	// Change the cursor to a pointer when the mouse is over the train line layer.
+	map.on('mouseenter', 'found-stations', () => {
+		map.getCanvas().style.cursor = 'pointer';
+	});
+
+	// Change it back to a pointer when it leaves.
+	map.on('mouseleave', 'found-stations', () => {
+		map.getCanvas().style.cursor = '';
+	});
+});
+	</script>
+
+</body>
+</html>
