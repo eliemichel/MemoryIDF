@@ -950,7 +950,6 @@ class MemoryEngine {
 	search(query) {
 		return new Promise((resolve, reject) => {
 			const nkey = this._normalizeKey(query);
-			console.log(nkey);
 
 			// naive baseline
 			//resolve(this.data[nkey]);
@@ -1126,76 +1125,36 @@ const $map = new Promise((resolve, reject) => {
 Promise.all([$map, dataLoader.$traces])
 .then(([map, traces]) => {
 
-	map.addSource('traces', {
+	// SPlit to force TER to be below other lines
+	map.addSource('traces-ter', {
 		type: 'geojson',
-		data: traces
+		data: traces,
+		filter: [ '==', [ 'get', 'trainline' ], 'TER TER' ]
+	});
+	map.addSource('traces-no-ter', {
+		type: 'geojson',
+		data: traces,
+		filter: [ '!=', [ 'get', 'trainline' ], 'TER TER' ]
 	});
 
 	// Add a symbol layer showing all train lines
-	map.addLayer({
-		id: 'line-train',
-		type: 'line',
-		source: 'traces',
-		paint: {
-			"line-color": ["get", "color"],
-			"line-width": 3,
-			//"line-offset": ["*", 3, ["interpolate",
-			//	['linear'],
-			//	0.0, ["get", "start-line-offset"],
-			//	1.0, ["get", "end-line-offset"],
-			//]],
-			"line-offset": ["*", 3, ["get", "line-offset"]],
-		}
-	});
-
-	// When a click event occurs on a train line, open a popup at the
-	// location of the feature, with description HTML from its properties.
-	map.on('click', 'line-train', (e) => {
-		// Copy coordinates array.
-		const coordinates = e.features[0].geometry.coordinates.slice();
-		const props = e.features[0].properties;
-
-		// Ensure that if the map is zoomed out such that multiple
-		// copies of the feature are visible, the popup appears
-		// over the copy being pointed to.
-		while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-		}
-
-		console.log(e.features[0]);
-
-		const description = `
-		<img src="${props.logo}" alt="logo" style="max-width: 30%;" />
-		<ul>
-		<li>exploitant: ${props.exploitant}</li>
-		<li>idf: ${props.idf != 0}</li>
-		<li>indice_lig: ${props.indice_lig}</li>
-		<li>metro: ${props.metro != 0}</li>
-		<li>mode: ${props.mode}</li>
-		<li>rer: ${props.rer != 0}</li>
-		<li>res_com: ${props.res_com}</li>
-		<li>reseau: ${props.reseau}</li>
-		<li>train: ${props.train != 0}</li>
-		<li>tramway: ${props.tramway != 0}</li>
-		<li>(orly?)val: ${props.val != 0}</li>
-		</ul>
-		`;
-
-		new mapboxgl.Popup()
-			.setLngLat(e.lngLat)
-			.setHTML(description)
-			.addTo(map);
-	});
-
-	// Change the cursor to a pointer when the mouse is over the train line layer.
-	map.on('mouseenter', 'line-train', () => {
-		map.getCanvas().style.cursor = 'pointer';
-	});
-
-	// Change it back to a pointer when it leaves.
-	map.on('mouseleave', 'line-train', () => {
-		map.getCanvas().style.cursor = '';
-	});
+	for (const layer of ['ter', 'no-ter']) {
+		map.addLayer({
+			id: 'line-train-' + layer,
+			type: 'line',
+			source: 'traces-' + layer,
+			paint: {
+				"line-color": ["get", "color"],
+				"line-width": 3,
+				//"line-offset": ["*", 3, ["interpolate",
+				//	['linear'],
+				//	0.0, ["get", "start-line-offset"],
+				//	1.0, ["get", "end-line-offset"],
+				//]],
+				"line-offset": ["*", 3, ["get", "line-offset"]],
+			}
+		});
+	}
 });
 
 Promise.all([$map, dataLoader.$stations])
@@ -1279,9 +1238,6 @@ Promise.all([$map, dataLoader.$stations])
 		// Copy coordinates array.
 		const coordinates = e.features[0].geometry.coordinates.slice();
 		const props = e.features[0].properties;
-		console.log(props);
-		console.log("id");
-		console.log(e.features[0].id);
 
 		// Ensure that if the map is zoomed out such that multiple
 		// copies of the feature are visible, the popup appears

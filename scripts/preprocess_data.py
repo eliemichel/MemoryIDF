@@ -89,6 +89,9 @@ class Registry:
             mode = 'RER'
         if mode == 'RER' and line == 'TER':
             line = 'D'
+        if line == "GL":
+            mode = "TER"
+            line = "TER"
         return (mode, line)
 
     @staticmethod
@@ -103,6 +106,7 @@ class Registry:
         }.get(line, line)
         if line == "GL":
             mode = "TER"
+            line = "TER"
         return (mode, line)
 
     @staticmethod
@@ -158,9 +162,17 @@ def buildRegistry(traces, stations):
 
 #---------------------------------------------
 
+image_overrides = {
+    'TER TER': "TER_TER.svg",
+}
+
 def downloadImages(reg):
     for key, entry in reg.trainlines.items():
-        if entry.logo_svg_url is not None:
+        override = image_overrides.get(Registry.formatKey(key))
+        if override is not None:
+            entry.logo_filename = override
+            logo_url = None
+        elif entry.logo_svg_url is not None:
             assert(entry.logo_filename is not None)
             logo_url = entry.logo_svg_url
         else:
@@ -229,6 +241,7 @@ def generateMetadata(stations, reg):
         #"NAVETTE FUN",
         #"NAVETTE ORL",
         #"TER GL",
+        "TER TER",
     ]
 
     trainline_logo_style = {
@@ -278,7 +291,7 @@ def generateMetadata(stations, reg):
         "NAVETTE FUN": { "text-color": "white", "shape": "square" },
         "NAVETTE ORL": { "text-color": "white", "shape": "square" },
         "TER GL":      { "text-color": "white", "shape": "square" },
-        "TER TER":     { "text-color": "white", "shape": "square" },
+        "TER TER":     { "text-color": "white", "shape": "rounded-square" },
     }
 
     return {
@@ -323,7 +336,8 @@ def generateNewStations(stations, reg):
 
     def filterProperties(props):
         key = Registry.makeKeyFromStationProps(props)
-        if props["mode"] == 'TER' or key[0] in {'TER', 'NAVETTE'}:
+        #if props["mode"] == 'TER' or key[0] in {'TER', 'NAVETTE'}:
+        if key[0] == 'NAVETTE':
             return []
 
         meta = reg.trainlines.get(key)
@@ -341,13 +355,15 @@ def generateNewStations(stations, reg):
 def generateNewTraces(traces, reg):
     def filterProperties(props):
         key = Registry.makeKeyFromTraceProps(props)
-        if props["mode"] == 'TER' or key[0] == 'NAVETTE':
+        #if props["mode"] == 'TER' or key[0] == 'NAVETTE':
+        if key[0] == 'NAVETTE':
             return []
 
         meta = reg.trainlines.get(key)
         assert(meta is not None)
         props['color'] = '#' + meta.color
         props['logo'] = meta.logo
+        props['trainline'] = Registry.formatKey(key)
         props['line-offset'] = {
             "J": 1,
             "N": 1,
