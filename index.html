@@ -7,9 +7,7 @@
 
 	<script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
 	<link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet" />
-	<script src="fuzzysort.min.js"></script>
 	<script src="fuzzyset.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 	<style type="text/css">
 		body {
@@ -181,6 +179,7 @@
 					<li><span class="percentage" id="stat-surface">X</span> d'hectares trouvés</li>
 					<li><span class="percentage" id="stat-inhabitants">X</span> d'habitants trouvés</li>
 					<li><span class="percentage" id="stat-stations">X</span> de gares trouvées</li>
+					<li><span class="percentage" id="stat-forest">0.0</span> de parcs et forêts trouvés</li>
 				</ul>
 			</div>
 			<div id="menu">
@@ -359,7 +358,7 @@ const Action = {
 				features: [],
 			},
 		};
-		// Build a temporary mapping from id to geoFeatures
+		// Build a temporary mapping from id to geoFeatures (TODO: use stationData.idToIndex)
 		const stationIdToIndex = {};
 		stations.features.map((entry, index) => {
 			stationIdToIndex[entry.properties.id_gares] = index;
@@ -463,100 +462,56 @@ function importJsonFile() {
 // Start fetching data right away
 const dataLoader = {
 	$traces:
-		fetch('traces-du-reseau-ferre-idf.geojson')
+		fetch('data/memory-pour-idf-trainline-traces.geojson')
 		.then(response => response.json()),
 
 	$stations:
-		fetch('emplacement-des-gares-idf.geojson')
+		fetch('data/memory-pour-idf-stations.geojson')
+		.then(response => response.json()),
+
+	$stationsMeta:
+		fetch('data/memory-pour-idf-stations-metadata.geojson')
 		.then(response => response.json()),
 
 	// Post-operations are populated below because the rely on other members of
 	// the dataLoader.
 
-	// Metadata about train lines
-	$trainline: null,
-
 	// Names to be guessed
 	$memory: null,
 
-	// Adding a color to each station
-	$coloredStations: null,
+	// Stores both stations and metadata + a precomputed id -> index mapping
+	$stationData: null,
 };
 
-// Add post-loading operations
-dataLoader.$trainline = dataLoader.$traces.then(traces => {
-	return traces.features.reduce((acc, item) => {
-		const props = item.properties;
-		const key = [props.mode, props.indice_lig];
-		acc[key] = {
-			color: "#" + props.colourweb_hexa,
-			logo: props.picto_final,
-		};
-		return acc;
-	}, {});
+
+dataLoader.$stationData = Promise.all([dataLoader.$stations, dataLoader.$stationsMeta])
+.then(([stations, meta]) => {
+	const idToIndex = {};
+	stations.features.map((entry, index) => {
+		idToIndex[entry.properties.id_gares] = index;
+	});
+	return {
+		idToIndex,
+		stations,
+		meta,
+	}
 });
 
-dataLoader.$coloredStations = Promise.all([dataLoader.$stations, dataLoader.$trainline])
-.then(([stations, trainline]) => {
-	return {
-		...stations,
-		features: stations.features.map(item => ({
-			...item,
-			properties: {
-				...item.properties,
-				color: (
-					trainline[[item.properties.mode, item.properties.indice_lig]]
-					|| {color: "#ff8888"}
-					).color,
-			}
-		}))
-	};
-});
 
 // Structure hiding the mechanism through which we fix small typos in user guesses
 class MemoryEngine {
 	constructor() {
 		this.data = {}; // naive baseline
-		this.targets = []; // using https://github.com/farzher/fuzzysort
-		this.list = []; // using https://www.fusejs.io
-		this.keys = []; // using https://github.com/Glench/fuzzyset.js
 	}
 
 	insert(key, value) {
 		const nkey = this._normalizeKey(key);
 		this.data[nkey] = value;
-		this.targets.push({
-			key: fuzzysort.prepare(nkey),
-			value
-		});
-		this.list.push({
-			key: nkey,
-			value
-		});
-		this.keys.push(nkey);
 	}
 
 	// This is called after all insert and before all search
 	freeze() {
-		const fuseOptions = {
-			// isCaseSensitive: false,
-			includeScore: true,
-			// shouldSort: true,
-			// includeMatches: false,
-			// findAllMatches: false,
-			// minMatchCharLength: 1,
-			location: 0,
-			// threshold: 0.6,
-			distance: 0,
-			// useExtendedSearch: false,
-			// ignoreLocation: false,
-			// ignoreFieldNorm: false,
-			// fieldNormWeight: 1,
-			keys: [ "key" ]
-		};
-		this.fuse = new Fuse(this.list, fuseOptions); // using https://www.fusejs.io
-
-		this.fuzzyset = FuzzySet(this.keys);
+		this.fuzzyset = FuzzySet(Object.keys(this.data));
 	}
 
 	search(query) {
@@ -566,20 +521,6 @@ class MemoryEngine {
 
 			// naive baseline
 			//resolve(this.data[nkey]);
-
-			// fuzzysort
-			//const results = fuzzysort.go(nkey, this.targets, {
-			//	key: "key",
-			//	limit: 10,
-			//	//threshold: -10000, // don't return bad results
-			//});
-			//console.log(results);
-			//resolve(results.length > 0 ? results[0].obj : undefined);
-
-			// fuse
-			//const results = this.fuse.search(nkey, { limit: 10 });
-			//console.log(results);
-			//resolve(results.length > 0 ? results[0].item : undefined);
 
 			// fuzzyset
 			const results = this.fuzzyset.get(nkey, null, 0.9);
@@ -622,7 +563,7 @@ $dom.then(dom => {
 	renderSearchForm(dom, state);
 });
 
-Promise.all([$dom, dataLoader.$coloredStations])
+Promise.all([$dom, dataLoader.$stations])
 .then(([dom, stations]) => {
 	const savedStateJson = localStorage.getItem("savedState");
 	if (savedStateJson !== null) {
@@ -652,8 +593,9 @@ Promise.all([$dom, dataLoader.$coloredStations])
 	});
 });
 
-const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$coloredStations])
-.then(([dom, memory, stations]) => {
+const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$stationData])
+.then(([dom, memory, stationData]) => {
+	const stations = stationData.stations;
 	// We can now add the search event handler
 	dom["search-form"].addEventListener('submit', () => {
 		if (state.loading) return;
@@ -668,10 +610,18 @@ const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$colore
 				console.log("Found!");
 				if (result.type == 'STATION') {
 					const props = stations.features[result.index].properties;
-					dispatch(dom, Action.AppendFoundStationItem({
-						id: ['STATION', props.id_gares],
-						name: props.nom_zdc,
-					}, stations.features[result.index]));
+					const connected_ids = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
+
+					connected_ids.map(id => {
+
+						const index = stationData.idToIndex[id];
+						const props = stations.features[index].properties;
+						dispatch(dom, Action.AppendFoundStationItem({
+							id: ['STATION', props.id_gares],
+							name: props.nom_zdc,
+						}, stations.features[index]));
+
+					});
 				}
 			}
 
@@ -681,12 +631,6 @@ const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$colore
 
 	dispatch(dom, Action.InitializeStationCache(stations));
 	dispatch(dom, Action.StopLoading());
-
-	// Test
-	console.log(memory);
-	memory.search("Pont du Garigliano").then(console.log);
-	memory.search("Pont du garigliano").then(console.log);
-	memory.search("Pont do garigliano").then(console.log);
 });
 
 Promise.all([$mapLoaded, dataLoader.$traces])
@@ -703,9 +647,14 @@ Promise.all([$mapLoaded, dataLoader.$traces])
 		'type': 'line',
 		'source': 'traces',
 		"paint": {
-			"line-color": ["concat", "#", ["get", "colourweb_hexa"]],
+			"line-color": ["get", "color"],
 			"line-width": 3,
-			"line-offset": 0, // TODO: add offset in data for overlapping lines
+			//"line-offset": ["*", 3, ["interpolate",
+			//	['linear'],
+			//	0.0, ["get", "start-line-offset"],
+			//	1.0, ["get", "end-line-offset"],
+			//]],
+			"line-offset": ["*", 3, ["get", "line-offset"]],
 		}
 	});
 
@@ -723,8 +672,10 @@ Promise.all([$mapLoaded, dataLoader.$traces])
 			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
 		}
 
+		console.log(e.features[0]);
+
 		const description = `
-		<img src="${props.picto_final}" alt="logo" style="max-width: 30%;" />
+		<img src="${props.logo}" alt="logo" style="max-width: 30%;" />
 		<ul>
 		<li>exploitant: ${props.exploitant}</li>
 		<li>idf: ${props.idf != 0}</li>
@@ -757,8 +708,8 @@ Promise.all([$mapLoaded, dataLoader.$traces])
 	});
 });
 
-Promise.all([$mapLoaded, dataLoader.$coloredStations])
-.then(([_, stations, trainline]) => {
+Promise.all([$mapLoaded, dataLoader.$stations])
+.then(([_, stations]) => {
 
 	// Add a GeoJSON source containing place coordinates and information.
 	map.addSource('stations', {
@@ -775,8 +726,9 @@ Promise.all([$mapLoaded, dataLoader.$coloredStations])
 		'paint': {
 			//'circle-color': ['get', 'color'],
 			'circle-radius': 3,
-			//'circle-stroke-color': '#000000',
-			//'circle-stroke-width': 1,
+			'circle-stroke-color': '#000000',
+			'circle-stroke-opacity': 0.5,
+			'circle-stroke-width': 1,
 			'circle-color': '#ffffff',
 			'circle-opacity': 1.0,
 		}
@@ -793,9 +745,10 @@ Promise.all([$mapLoaded, dataLoader.$coloredStations])
 		'type': 'circle',
 		'source': 'found-stations',
 		'paint': {
-			'circle-radius': 5,
-			//'circle-stroke-color': '#000000',
-			//'circle-stroke-width': 1,
+			'circle-radius': 4,
+			'circle-stroke-color': '#000000',
+			'circle-stroke-opacity': 0.7,
+			'circle-stroke-width': 1,
 			'circle-color': ['get', 'color'],
 			//'circle-color': '#ffffff',
 		}
@@ -808,6 +761,13 @@ Promise.all([$mapLoaded, dataLoader.$coloredStations])
 			'text-anchor': 'bottom',
 			'text-offset': [0, -0.5],
 			'text-field': ['get', 'nom_zdc'],
+			'text-size': 13,
+			'text-font': ["Open Sans Regular", "Arial Unicode MS Regular"],
+		},
+		"paint": {
+			"text-halo-blur": 2,
+			"text-halo-color": "rgba(255, 255, 255, 1.0)",
+			"text-halo-width": 1,
 		}
 	});
 

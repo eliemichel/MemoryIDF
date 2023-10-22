@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Memory pour le Grand Paris</title>
+	<script src="fuzzyset.js"></script>
+
+	<style type="text/css">
+		body {
+			font-family: "Helvetica", sans-serif;
+		}
+
+		#scoreboard {
+			box-sizing: border-box;
+			position: absolute;
+			left: 0;
+			top: 0;
+			width: 30%;
+			height: 100vh;
+			background-color: #b7c8d9;
+			padding: 1em 1.5em;
+			overflow-y: scroll;
+		}
+
+		#scoreboard > hr {
+			border: none;
+			height: 3px;
+			border-radius: 2px;
+			background-color: #a7bcd0;
+			margin: 1em 0;
+		}
+
+		#stats > ul,
+		#counts {
+			margin: 0;
+			padding: 0;
+			list-style-type: none;
+		}
+
+		#counts li {
+			text-transform: uppercase;
+			color: #155a9f;
+		}
+		#counts li:nth-child(2) {
+			font-size: 0.9em;
+		}
+
+		#menu button {
+			border: 0;
+			cursor: pointer;
+			margin: 0;
+			margin-top: 1em;
+		}
+
+		#found {
+			margin: 0;
+			padding: 0;
+			list-style-type: none;
+		}
+
+		#found li {
+			display: block;
+			padding: 0.7em 1em;
+			margin: 0.5em 0;
+			border-radius: 0.3em;
+			font-weight: bold;
+			overflow: hidden;
+		}
+		#found li:hover {
+			background: #a7bcd0;
+			cursor: pointer;
+		}
+		#found li.new {
+			animation: 0.2s ease-out 0s 1 normal reveal;
+		}
+		@keyframes reveal {
+			from { max-height: 0em; padding: 0 1em; }
+			to { max-height: 2.5em; padding: 0.7em 1em; }
+		}
+
+		.percentage {
+			font-weight: bold;
+			font-size: 1.25em;
+		}
+		.percentage::after {
+			font-weight: normal;
+			margin-left: 0.1em;
+			content: '%';
+		}
+	</style>
+</head>
+<body>
+	<main>
+		<div id="scoreboard">
+			<div id="stats">
+				<ul>
+					<li><span class="percentage" id="stat-communes">X</span> de communes trouvées</li>
+					<li><span class="percentage" id="stat-surface">X</span> d'hectares trouvés</li>
+					<li><span class="percentage" id="stat-inhabitants">X</span> d'habitants trouvés</li>
+					<li><span class="percentage" id="stat-stations">X</span> de gares trouvées</li>
+					<li><span class="percentage" id="stat-forest">0.0</span> de parcs et forêts trouvés</li>
+				</ul>
+			</div>
+			<div id="menu">
+				<button id="btn-export">Export</button>
+			</div>
+			<hr />
+			<div>
+				<ul id="counts">
+					<li><span id="count-stations">X</span> gares</li>
+					<li><span id="count-communes">X</span> communes (<span id="count-surface">X</span> ha, <span id="count-inhabitants">X</span> k habitants)</li>
+				</ul>
+
+				<ul id="found">
+					<li>foo</li>
+				</ul>
+			</div>
+		</div>
+	</main>
+
+	<script>
+const $DOMContentLoaded = new Promise((resolve) => {
+	document.addEventListener('DOMContentLoaded', resolve);
+});
+
+// Whenever DOM is ready, we get all the elements we eventually need to update.
+const $dom = $DOMContentLoaded.then(() => {
+	return [
+		"btn-export",
+	].reduce((acc, item) => {
+		acc[item] = document.getElementById(item);
+		return acc;
+	}, {});
+});
+
+// Utility function to create and download a file
+function exportFile(filename, text) {
+	var element = document.createElement('a');
+	element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+	element.setAttribute('download', filename);
+
+	element.style.display = 'none';
+	document.body.appendChild(element);
+
+	element.click();
+
+	document.body.removeChild(element);
+}
+
+const $traces =
+	fetch('data/raw/traces-du-reseau-ferre-idf.geojson')
+	.then(response => response.json());
+
+const $stations =
+	fetch('data/raw/emplacement-des-gares-idf.geojson')
+	.then(response => response.json());
+
+const $trainline = $traces.then(traces => {
+	return traces.features.reduce((acc, item) => {
+		const props = item.properties;
+		const key = [props.mode, props.indice_lig];
+		acc[key] = {
+			color: "#" + props.colourweb_hexa,
+			logo: props.picto_final,
+		};
+		return acc;
+	}, {});
+});
+
+const $processedStations = Promise.all([$stations, $trainline])
+.then(([stations, trainline]) => {
+	return {
+		...stations,
+		features: stations.features.map(item => ({
+			...item,
+			properties: {
+				...item.properties,
+				color: (
+					trainline[[item.properties.mode, item.properties.indice_lig]]
+					|| {color: "#ff8888"}
+					).color,
+			}
+		}))
+	};
+});
+
+// Structure hiding the mechanism through which we fix small typos in user guesses
+class MemoryEngine {
+	constructor() {
+		this.data = {}; // naive baseline
+	}
+
+	insert(key, value) {
+		const nkey = this._normalizeKey(key);
+		this.data[nkey] = value;
+	}
+
+	// This is called after all insert and before all search
+	freeze() {
+		this.fuzzyset = FuzzySet(Object.keys(this.data));
+	}
+
+	search(query) {
+		return new Promise((resolve, reject) => {
+			const nkey = this._normalizeKey(query);
+			console.log(nkey);
+
+			// naive baseline
+			//resolve(this.data[nkey]);
+
+			// fuzzyset
+			const results = this.fuzzyset.get(nkey, null, 0.9);
+			if (results == null) resolve(null);
+			else resolve(this.data[results[0][1]]);
+		});
+	}
+
+	_normalizeKey(str) {
+		return str
+			.normalize("NFD")
+			.replace(/[\u0300-\u036f]/g, "")
+			.replace(/-/g, ' ')
+			.replace(/\s+/g, ' ')
+			.toLowerCase();
+	}
+}
+
+// Add post-loading operations
+$memory = $stations.then(stations => {
+	const engine = new MemoryEngine();
+	stations.features.map((item, index) => {
+		const props = item.properties;
+		const payload = {
+			type: 'STATION',
+			index
+		};
+		// nom de gare seul:
+		engine.insert(props.nom_gares, payload);
+		engine.insert(props.nom_iv, payload);
+		// nom + sous titre (possible de deviner mais bon courage):
+		engine.insert(props.nom_zdc, payload);
+	});
+	engine.freeze();
+	return engine;
+});
+
+const $processedTraces = $traces;
+
+Promise.all([$dom, $processedStations, $processedTraces, $trainline])
+.then(([dom, stations, traces, trainline]) => {
+	dom["btn-export"].addEventListener('click', () => {
+
+		exportFile(
+			"memory-pour-idf-stations.json",
+			JSON.stringify(stations, null, 2)
+		);
+
+		exportFile(
+			"memory-pour-idf-trainlines-traces.json",
+			JSON.stringify(traces, null, 2)
+		);
+
+		exportFile(
+			"memory-pour-idf-trainlines-metadata.json",
+			JSON.stringify(trainline, null, 2)
+		);
+
+	});
+});
+	</script>
+
+</body>
+</html>
