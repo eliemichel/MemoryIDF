@@ -63,6 +63,37 @@
   			border: 1px solid #ccc;
 		}
 
+		.notify-error #search-input {
+			animation: 0.5s ease-out 0s 1 normal notify-error;
+		}
+		@keyframes notify-error {
+			0% { transform: translateX(0); color: auto; }
+			25% { transform: translateX(5px); color: #dd2200; }
+			50% { transform: translateX(-5px); }
+			75% { transform: translateX(5px); }
+			100% { transform: translateX(0); color: auto; }
+		}
+
+		.notify-duplicate #search-input {
+			animation: 0.5s ease-out 0s 1 normal notify-duplicate;
+		}
+		@keyframes notify-duplicate {
+			0% { transform: translateX(0); color: auto; }
+			25% { transform: translateX(5px); color: #0088ff; }
+			50% { transform: translateX(-5px); }
+			75% { transform: translateX(5px); }
+			100% { transform: translateX(0); color: auto; }
+		}
+
+		.notify-success #search-input {
+			animation: 1.0s linear 0s 1 normal notify-success;
+		}
+		@keyframes notify-success {
+			0% { color: auto; }
+			10% { color: #22a607; }
+			100% { color: auto; }
+		}
+
 		#search-loader {
 			position: absolute;
 			width: 1.2em;
@@ -77,6 +108,40 @@
 		@keyframes spin {
 			from { transform: rotate(0deg); }
 			to { transform: rotate(360deg); }
+		}
+
+		#search-notification {
+			position: absolute;
+			height: 2.0em;
+			line-height: 2.0em;
+			right: 0.6em;
+			top: 0.5em;
+			padding: 0 0.8em;
+			border-radius: 0.5em;
+			opacity: 0;
+		}
+
+		.notify-error #search-notification {
+			color: #dd2200;
+			background-color: #ffd2ca;
+			animation: 0.8s ease-out 0s 1 normal notification-popup;
+		}
+		@keyframes notification-popup {
+			0% { transform: translateY(-5px); opacity: 0.0; }
+			20% { transform: translateY(0); opacity: 1.0; }
+			80% { transform: translateY(0); opacity: 1.0; }
+		}
+
+		.notify-duplicate #search-notification {
+			color: #0088ff;
+			background-color: #cae4fb;
+			animation: 0.8s ease-out 0s 1 normal notification-popup;
+		}
+
+		.notify-success #search-notification {
+			color: #22a607;
+			background-color: #c5ffb9;
+			animation: 0.8s ease-out 0s 1 normal notification-popup;
 		}
 
 		#scoreboard {
@@ -203,7 +268,8 @@
 				<form id="search-form" action="javascript:void(0);">
 					<div id="search-input-container">
 						<input id="search-input" type="text" name="guess" placeholder="Entrez le nom d'une commune ou gare" disabled />
-						<div id="search-loader"><div></div></div>
+						<div id="search-loader"></div>
+						<div id="search-notification">Test</div>
 					</div>
 				</form>
 			</div>
@@ -238,18 +304,21 @@
 
 	<script>
 // NB: Variable starting with $ are promises.
-mapboxgl.accessToken = 'pk.eyJ1IjoiZWxpZW1pY2hlbCIsImEiOiJjbG56d2wydHgxN3ppMmtxb3ByMjhkdW82In0.iDZGP4LZtOPIYgr1XdqY5w';
 
-const map = new mapboxgl.Map({
-	container: 'map',
-	style: 'mapbox://styles/eliemichel/clnzwjzoj007i01qxg4vcf4m0',
-	center: [2.3522, 48.8566],
-	maxBounds: [
-		[0.75, 47.8566],
-		[4.0, 49.8566]
-	],
-	zoom: 9.5,
-});
+///////////////////////////////////////////////////////////
+// Immutable configuration globals
+
+const config = {
+	// for quick debug iterations, hide maps (do not even load it)
+	DISABLE_MAP: false,
+
+	// MapBox access token (only allowed on specific hosts so you can use it
+	// localhost but not steal it for your website)
+	MAPBOX_ACCESS_TOKEN: 'pk.eyJ1IjoiZWxpZW1pY2hlbCIsImEiOiJjbG56d2wydHgxN3ppMmtxb3ByMjhkdW82In0.iDZGP4LZtOPIYgr1XdqY5w'
+};
+
+///////////////////////////////////////////////////////////
+// Global state
 
 // This is the only place where user data is stored
 const state = {
@@ -258,6 +327,9 @@ const state = {
 
 	// Temporary state that does not need to be serialized
 	loading: true,
+	notifyingError: false,
+	notifyingDuplicate: false,
+	notifyingSuccess: false,
 
 	// Values that can be recomputed at any time from the rest of the state
 	cache: {
@@ -289,12 +361,11 @@ const state = {
 	}
 };
 
+///////////////////////////////////////////////////////////
+// DOM binding
+
 const $DOMContentLoaded = new Promise((resolve) => {
 	document.addEventListener('DOMContentLoaded', resolve);
-});
-
-const $mapLoaded = new Promise((resolve) => {
-	map.on('load', resolve);
 });
 
 // Whenever DOM is ready, we get all the elements we eventually need to update.
@@ -303,6 +374,7 @@ const $dom = $DOMContentLoaded.then(() => {
 		"search-input",
 		"search-form",
 		"search-loader",
+		"search-notification",
 		"scoreboard",
 		"btn-export",
 		"btn-import",
@@ -320,6 +392,9 @@ const $dom = $DOMContentLoaded.then(() => {
 		return acc;
 	}, {});
 });
+
+///////////////////////////////////////////////////////////
+// Actions
 
 // Unlike a typical Reduc pattern, actions are not pure.
 // We implement this pattern in case we eventually need it, but as long as
@@ -342,6 +417,42 @@ const Action = {
 		renderSearchForm(dom, state);
 	},
 
+	// Invoked when the player query does not match any entry
+	NotifyError: () => (dom, state) => {
+		if (!state.notifyingError) {
+			state.notifyingError = true;
+			renderSearchForm(dom, state);
+			setTimeout(() => {
+				state.notifyingError = false;
+				renderSearchForm(dom, state);
+			}, 1000);
+		}
+	},
+
+	// Invoked when the player query does not match any entry
+	NotifyDuplicate: () => (dom, state) => {
+		if (!state.notifyingDuplicate) {
+			state.notifyingDuplicate = true;
+			renderSearchForm(dom, state);
+			setTimeout(() => {
+				state.notifyingDuplicate = false;
+				renderSearchForm(dom, state);
+			}, 1000);
+		}
+	},
+
+	// Invoked when the player query does not match any entry
+	NotifySuccess: () => (dom, state) => {
+		if (!state.notifyingSuccess) {
+			state.notifyingSuccess = true;
+			renderSearchForm(dom, state);
+			setTimeout(() => {
+				state.notifyingSuccess = false;
+				renderSearchForm(dom, state);
+			}, 1000);
+		}
+	},
+
 	AppendFoundStationItem: (item, geoFeature) => (dom, state) => {
 		if (state.cache.foundKeys[item.id]) return; // TODO trigger "déjà trouvé"
 		state.cache.foundKeys[item.id] = true;
@@ -358,7 +469,9 @@ const Action = {
 		state.cache.foundStationsGeojson.features.push(
 			geoFeature
 		);
-		map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
+		$map.then(map => {
+			map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
+		});
 
 		localStorage.setItem("savedState", JSON.stringify(state));
 	},
@@ -412,10 +525,12 @@ const Action = {
 			}
 		});
 
-		const src = map.getSource('found-stations');
-		if (src) { // may not be loaded yet
-			src.setData(state.cache.foundStationsGeojson);
-		}
+		$map.then(map => {
+			const src = map.getSource('found-stations');
+			if (src) { // may not be loaded yet
+				src.setData(state.cache.foundStationsGeojson);
+			}
+		});
 
 		renderScoreboard(dom, state);
 
@@ -429,7 +544,9 @@ function dispatch(dom, action) {
 	action(dom, state);
 }
 
-// Render functions are responsible for updating the DOM
+///////////////////////////////////////////////////////////
+// Render functions (responsible for updating the DOM)
+
 function renderScoreboard(dom, state, newIndex) {
 	dom["stat-communes"].innerText = state.cache.stats.communes.toFixed(1);
 	dom["stat-surface"].innerText = state.cache.stats.surface.toFixed(1);
@@ -459,6 +576,8 @@ function renderScoreboard(dom, state, newIndex) {
 
 function renderSearchForm(dom, state) {
 	const input = dom["search-input"];
+	const form = dom["search-form"];
+	const notif = dom["search-notification"];
 	const loader = dom["search-loader"];
 	const wasDisabled = input.disabled;
 	input.disabled = state.loading;
@@ -467,8 +586,20 @@ function renderSearchForm(dom, state) {
 		//input.selectionEnd = input.value.length;
 		input.focus();
 	}
+	form.setAttribute("class",
+		state.notifyingError ? "notify-error" :
+		state.notifyingDuplicate ? "notify-duplicate" :
+		state.notifyingSuccess ? "notify-success" : ""
+	);
+	notif.innerText =
+		state.notifyingError ? "Non !" :
+		state.notifyingDuplicate ? "Déjà trouvé !" :
+		state.notifyingSuccess ? "Bravo !" : "";
 	loader.style.visibility = state.loading ? "visible" : "hidden";
 }
+
+///////////////////////////////////////////////////////////
+// Utils
 
 // Utility function to create and download a file
 function exportFile(filename, text) {
@@ -504,6 +635,9 @@ function importJsonFile() {
 		document.body.removeChild(element);
 	});
 }
+
+///////////////////////////////////////////////////////////
+// Data loader
 
 // Start fetching data right away
 const dataLoader = {
@@ -604,6 +738,9 @@ dataLoader.$memory = dataLoader.$stations.then(stations => {
 	return engine;
 });
 
+///////////////////////////////////////////////////////////
+// Setup DOM event listeners
+
 $dom.then(dom => {
 	renderScoreboard(dom, state);
 	renderSearchForm(dom, state);
@@ -651,23 +788,32 @@ const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$statio
 
 		memory.search(query).then(result => {
 			if (result == null) {
-				console.log("Not found!");
+				dispatch(dom, Action.NotifyError());
 			} else {
-				console.log("Found!");
 				if (result.type == 'STATION') {
+
 					const props = stations.features[result.index].properties;
-					const connected_ids = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
+					const item_id = ['STATION', props.id_gares];
 
-					connected_ids.map(id => {
+					const alreadyFound = state.cache.foundKeys[item_id];
+					if (alreadyFound) {
+						dispatch(dom, Action.NotifyDuplicate());
+					} else {
+						const connected_ids = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
 
-						const index = stationData.idToIndex[id];
-						const props = stations.features[index].properties;
-						dispatch(dom, Action.AppendFoundStationItem({
-							id: ['STATION', props.id_gares],
-							name: props.nom_zdc,
-						}, stations.features[index]));
+						connected_ids.map(id => {
 
-					});
+							const index = stationData.idToIndex[id];
+							const props = stations.features[index].properties;
+							dispatch(dom, Action.AppendFoundStationItem({
+								id: ['STATION', props.id_gares],
+								name: props.nom_zdc,
+							}, stations.features[index]));
+
+						});
+
+						dispatch(dom, Action.NotifySuccess());
+					}
 				}
 			}
 
@@ -679,8 +825,33 @@ const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$statio
 	dispatch(dom, Action.StopLoading());
 });
 
-Promise.all([$mapLoaded, dataLoader.$traces])
-.then(([_, traces]) => {
+///////////////////////////////////////////////////////////
+// Map
+
+const $map = new Promise((resolve, reject) => {
+	if (config.DISABLE_MAP) {
+		// Just never resolve
+		console.log("Map is disabled");
+	} else {
+		mapboxgl.accessToken = config.MAPBOX_ACCESS_TOKEN;
+
+		const map = new mapboxgl.Map({
+			container: 'map',
+			style: 'mapbox://styles/eliemichel/clnzwjzoj007i01qxg4vcf4m0',
+			center: [2.3522, 48.8566],
+			maxBounds: [
+				[0.75, 47.8566],
+				[4.0, 49.8566]
+			],
+			zoom: 9.5,
+		});
+
+		map.on('load', () => { resolve(map); });
+	}
+});
+
+Promise.all([$map, dataLoader.$traces])
+.then(([map, traces]) => {
 
 	map.addSource('traces', {
 		'type': 'geojson',
@@ -754,8 +925,8 @@ Promise.all([$mapLoaded, dataLoader.$traces])
 	});
 });
 
-Promise.all([$mapLoaded, dataLoader.$stations])
-.then(([_, stations]) => {
+Promise.all([$map, dataLoader.$stations])
+.then(([map, stations]) => {
 
 	// Add a GeoJSON source containing place coordinates and information.
 	map.addSource('stations', {
