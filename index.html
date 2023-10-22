@@ -756,7 +756,7 @@ function renderScoreboard(dom, state, newIndex) {
 function renderScorboardLineCounter(trainline_key, count, stationData) {
 	const trainline = stationData.meta.trainlines[trainline_key];
 	const total = trainline['station-count'];
-	const angle = 2.0 * Math.PI * count / total;
+	const angle = 2.0 * Math.PI * (count | 0) / total;
 
 	const logo = `<img src="data/images/${trainline.logo}" class="logo" />`;
 	const radius = 50 * Math.sqrt(2.0);
