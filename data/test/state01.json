@@ -1,0 +1,1122 @@
+{
+  "found": [
+    {
+      "id": [
+        "STATION",
+        538
+      ],
+      "name": "Meudon"
+    },
+    {
+      "id": [
+        "STATION",
+        551
+      ],
+      "name": "Mitry - Claye"
+    },
+    {
+      "id": [
+        "STATION",
+        550
+      ],
+      "name": "Mitry - Claye"
+    },
+    {
+      "id": [
+        "STATION",
+        837
+      ],
+      "name": "Strasbourg - Saint-Denis"
+    },
+    {
+      "id": [
+        "STATION",
+        836
+      ],
+      "name": "Strasbourg - Saint-Denis"
+    },
+    {
+      "id": [
+        "STATION",
+        838
+      ],
+      "name": "Strasbourg - Saint-Denis"
+    },
+    {
+      "id": [
+        "STATION",
+        52
+      ],
+      "name": "Basilique de Saint-Denis"
+    },
+    {
+      "id": [
+        "STATION",
+        761
+      ],
+      "name": "Basilique de Saint-Denis"
+    },
+    {
+      "id": [
+        "STATION",
+        913
+      ],
+      "name": "Vincennes"
+    },
+    {
+      "id": [
+        "STATION",
+        641
+      ],
+      "name": "Picpus"
+    },
+    {
+      "id": [
+        "STATION",
+        772
+      ],
+      "name": "Saint-Mandé"
+    },
+    {
+      "id": [
+        "STATION",
+        702
+      ],
+      "name": "Porte de Vincennes"
+    },
+    {
+      "id": [
+        "STATION",
+        1117
+      ],
+      "name": "Porte de Vincennes"
+    },
+    {
+      "id": [
+        "STATION",
+        1098
+      ],
+      "name": "Porte de Vincennes"
+    },
+    {
+      "id": [
+        "STATION",
+        1101
+      ],
+      "name": "Porte Dorée"
+    },
+    {
+      "id": [
+        "STATION",
+        705
+      ],
+      "name": "Porte Dorée"
+    },
+    {
+      "id": [
+        "STATION",
+        978
+      ],
+      "name": "Pont du Garigliano - Hôpital Européen G. Pompidou"
+    },
+    {
+      "id": [
+        "STATION",
+        57
+      ],
+      "name": "Pont du Garigliano - Hôpital Européen G. Pompidou"
+    },
+    {
+      "id": [
+        "STATION",
+        513
+      ],
+      "name": "Marcel Sembat"
+    },
+    {
+      "id": [
+        "STATION",
+        986
+      ],
+      "name": "Porte d'Orléans"
+    },
+    {
+      "id": [
+        "STATION",
+        706
+      ],
+      "name": "Porte d'Orléans"
+    },
+    {
+      "id": [
+        "STATION",
+        991
+      ],
+      "name": "Porte d'Italie"
+    },
+    {
+      "id": [
+        "STATION",
+        703
+      ],
+      "name": "Porte d'Italie"
+    },
+    {
+      "id": [
+        "STATION",
+        1230
+      ],
+      "name": "Porte de Choisy"
+    },
+    {
+      "id": [
+        "STATION",
+        992
+      ],
+      "name": "Porte de Choisy"
+    },
+    {
+      "id": [
+        "STATION",
+        687
+      ],
+      "name": "Porte de Choisy"
+    },
+    {
+      "id": [
+        "STATION",
+        993
+      ],
+      "name": "Porte d'Ivry"
+    },
+    {
+      "id": [
+        "STATION",
+        704
+      ],
+      "name": "Porte d'Ivry"
+    },
+    {
+      "id": [
+        "STATION",
+        189
+      ],
+      "name": "Cité universitaire"
+    },
+    {
+      "id": [
+        "STATION",
+        988
+      ],
+      "name": "Cité universitaire"
+    },
+    {
+      "id": [
+        "STATION",
+        989
+      ],
+      "name": "Stade Charléty - Porte de Gentilly"
+    },
+    {
+      "id": [
+        "STATION",
+        990
+      ],
+      "name": "Poterne des Peupliers"
+    },
+    {
+      "id": [
+        "STATION",
+        987
+      ],
+      "name": "Montsouris"
+    },
+    {
+      "id": [
+        "STATION",
+        985
+      ],
+      "name": "Jean Moulin"
+    },
+    {
+      "id": [
+        "STATION",
+        1104
+      ],
+      "name": "Avenue de France"
+    },
+    {
+      "id": [
+        "STATION",
+        1105
+      ],
+      "name": "Maryse Bastié"
+    },
+    {
+      "id": [
+        "STATION",
+        469
+      ],
+      "name": "Limay"
+    },
+    {
+      "id": [
+        "STATION",
+        506
+      ],
+      "name": "Malesherbes"
+    },
+    {
+      "id": [
+        "STATION",
+        955
+      ],
+      "name": "Malesherbes"
+    },
+    {
+      "id": [
+        "STATION",
+        437
+      ],
+      "name": "Le Vert de Maisons"
+    },
+    {
+      "id": [
+        "STATION",
+        612
+      ],
+      "name": "Orsay Ville"
+    },
+    {
+      "id": [
+        "STATION",
+        429
+      ],
+      "name": "Le Guichet"
+    },
+    {
+      "id": [
+        "STATION",
+        839
+      ],
+      "name": "Saint-Rémy-lès-Chevreuse"
+    },
+    {
+      "id": [
+        "STATION",
+        401
+      ],
+      "name": "La Hacquinière"
+    },
+    {
+      "id": [
+        "STATION",
+        118
+      ],
+      "name": "Bures-sur-Yvette"
+    },
+    {
+      "id": [
+        "STATION",
+        330
+      ],
+      "name": "Gif-sur-Yvette"
+    },
+    {
+      "id": [
+        "STATION",
+        483
+      ],
+      "name": "Lozère"
+    },
+    {
+      "id": [
+        "STATION",
+        616
+      ],
+      "name": "Palaiseau"
+    },
+    {
+      "id": [
+        "STATION",
+        524
+      ],
+      "name": "Massy - Verrières"
+    },
+    {
+      "id": [
+        "STATION",
+        523
+      ],
+      "name": "Massy - Verrières"
+    },
+    {
+      "id": [
+        "STATION",
+        522
+      ],
+      "name": "Massy - Palaiseau"
+    },
+    {
+      "id": [
+        "STATION",
+        520
+      ],
+      "name": "Massy - Palaiseau"
+    },
+    {
+      "id": [
+        "STATION",
+        582
+      ],
+      "name": "Nation"
+    },
+    {
+      "id": [
+        "STATION",
+        583
+      ],
+      "name": "Nation"
+    },
+    {
+      "id": [
+        "STATION",
+        584
+      ],
+      "name": "Nation"
+    },
+    {
+      "id": [
+        "STATION",
+        586
+      ],
+      "name": "Nation"
+    },
+    {
+      "id": [
+        "STATION",
+        585
+      ],
+      "name": "Nation"
+    },
+    {
+      "id": [
+        "STATION",
+        121
+      ],
+      "name": "Buzenval / Avron"
+    },
+    {
+      "id": [
+        "STATION",
+        44
+      ],
+      "name": "Buzenval / Avron"
+    },
+    {
+      "id": [
+        "STATION",
+        640
+      ],
+      "name": "Philippe Auguste"
+    },
+    {
+      "id": [
+        "STATION",
+        892
+      ],
+      "name": "Victor Hugo"
+    },
+    {
+      "id": [
+        "STATION",
+        682
+      ],
+      "name": "Porte Dauphine"
+    },
+    {
+      "id": [
+        "STATION",
+        152
+      ],
+      "name": "Charles-de-Gaulle Étoile"
+    },
+    {
+      "id": [
+        "STATION",
+        151
+      ],
+      "name": "Charles-de-Gaulle Étoile"
+    },
+    {
+      "id": [
+        "STATION",
+        154
+      ],
+      "name": "Charles-de-Gaulle Étoile"
+    },
+    {
+      "id": [
+        "STATION",
+        153
+      ],
+      "name": "Charles-de-Gaulle Étoile"
+    },
+    {
+      "id": [
+        "STATION",
+        923
+      ],
+      "name": "Wagram"
+    },
+    {
+      "id": [
+        "STATION",
+        218
+      ],
+      "name": "Courcelles"
+    },
+    {
+      "id": [
+        "STATION",
+        746
+      ],
+      "name": "Rome"
+    },
+    {
+      "id": [
+        "STATION",
+        908
+      ],
+      "name": "Villiers"
+    },
+    {
+      "id": [
+        "STATION",
+        907
+      ],
+      "name": "Villiers"
+    },
+    {
+      "id": [
+        "STATION",
+        648
+      ],
+      "name": "Place de Clichy"
+    },
+    {
+      "id": [
+        "STATION",
+        649
+      ],
+      "name": "Place de Clichy"
+    },
+    {
+      "id": [
+        "STATION",
+        21
+      ],
+      "name": "Anvers"
+    },
+    {
+      "id": [
+        "STATION",
+        647
+      ],
+      "name": "Pigalle"
+    },
+    {
+      "id": [
+        "STATION",
+        646
+      ],
+      "name": "Pigalle"
+    },
+    {
+      "id": [
+        "STATION",
+        76
+      ],
+      "name": "Blanche"
+    },
+    {
+      "id": [
+        "STATION",
+        50
+      ],
+      "name": "Barbès Rochechouart"
+    },
+    {
+      "id": [
+        "STATION",
+        49
+      ],
+      "name": "Barbès Rochechouart"
+    },
+    {
+      "id": [
+        "STATION",
+        409
+      ],
+      "name": "La Chapelle"
+    },
+    {
+      "id": [
+        "STATION",
+        373
+      ],
+      "name": "Jaurès"
+    },
+    {
+      "id": [
+        "STATION",
+        374
+      ],
+      "name": "Jaurès"
+    },
+    {
+      "id": [
+        "STATION",
+        375
+      ],
+      "name": "Jaurès"
+    },
+    {
+      "id": [
+        "STATION",
+        809
+      ],
+      "name": "Stalingrad"
+    },
+    {
+      "id": [
+        "STATION",
+        810
+      ],
+      "name": "Stalingrad"
+    },
+    {
+      "id": [
+        "STATION",
+        808
+      ],
+      "name": "Stalingrad"
+    },
+    {
+      "id": [
+        "STATION",
+        195
+      ],
+      "name": "Colonel Fabien"
+    },
+    {
+      "id": [
+        "STATION",
+        220
+      ],
+      "name": "Couronnes"
+    },
+    {
+      "id": [
+        "STATION",
+        533
+      ],
+      "name": "Ménilmontant"
+    },
+    {
+      "id": [
+        "STATION",
+        60
+      ],
+      "name": "Belleville"
+    },
+    {
+      "id": [
+        "STATION",
+        633
+      ],
+      "name": "Père Lachaise"
+    },
+    {
+      "id": [
+        "STATION",
+        634
+      ],
+      "name": "Père Lachaise"
+    },
+    {
+      "id": [
+        "STATION",
+        857
+      ],
+      "name": "Tournan"
+    },
+    {
+      "id": [
+        "STATION",
+        967
+      ],
+      "name": "Tournan"
+    },
+    {
+      "id": [
+        "STATION",
+        385
+      ],
+      "name": "Juvisy"
+    },
+    {
+      "id": [
+        "STATION",
+        387
+      ],
+      "name": "Juvisy"
+    },
+    {
+      "id": [
+        "STATION",
+        108
+      ],
+      "name": "Brétigny"
+    },
+    {
+      "id": [
+        "STATION",
+        901
+      ],
+      "name": "Villeneuve-Saint-Georges"
+    },
+    {
+      "id": [
+        "STATION",
+        720
+      ],
+      "name": "Rambouillet"
+    },
+    {
+      "id": [
+        "STATION",
+        1031
+      ],
+      "name": "Vernon - Giverny"
+    },
+    {
+      "id": [
+        "STATION",
+        937
+      ],
+      "name": "Mantes-la-Jolie"
+    },
+    {
+      "id": [
+        "STATION",
+        507
+      ],
+      "name": "Mantes-la-Jolie"
+    },
+    {
+      "id": [
+        "STATION",
+        451
+      ],
+      "name": "Les Mureaux"
+    },
+    {
+      "id": [
+        "STATION",
+        903
+      ],
+      "name": "Villennes-sur-Seine"
+    },
+    {
+      "id": [
+        "STATION",
+        439
+      ],
+      "name": "Le Vésinet - Le Pecq"
+    },
+    {
+      "id": [
+        "STATION",
+        172
+      ],
+      "name": "Châtou - Croissy"
+    },
+    {
+      "id": [
+        "STATION",
+        1263
+      ],
+      "name": "Saint-Germain-en-Laye"
+    },
+    {
+      "id": [
+        "STATION",
+        820
+      ],
+      "name": "Saint-Germain-en-Laye"
+    },
+    {
+      "id": [
+        "STATION",
+        580
+      ],
+      "name": "Nanterre Ville"
+    },
+    {
+      "id": [
+        "STATION",
+        577
+      ],
+      "name": "Nanterre Préfecture / Esplanade Charles De Gaulle"
+    },
+    {
+      "id": [
+        "STATION",
+        579
+      ],
+      "name": "Nanterre Université"
+    },
+    {
+      "id": [
+        "STATION",
+        578
+      ],
+      "name": "Nanterre Université"
+    },
+    {
+      "id": [
+        "STATION",
+        7
+      ],
+      "name": "Achères Ville"
+    },
+    {
+      "id": [
+        "STATION",
+        6
+      ],
+      "name": "Achères Ville"
+    },
+    {
+      "id": [
+        "STATION",
+        501
+      ],
+      "name": "Maisons-Laffitte"
+    },
+    {
+      "id": [
+        "STATION",
+        502
+      ],
+      "name": "Maisons-Laffitte"
+    },
+    {
+      "id": [
+        "STATION",
+        661
+      ],
+      "name": "Poissy"
+    },
+    {
+      "id": [
+        "STATION",
+        660
+      ],
+      "name": "Poissy"
+    },
+    {
+      "id": [
+        "STATION",
+        4
+      ],
+      "name": "Achères Grand Cormier"
+    },
+    {
+      "id": [
+        "STATION",
+        1013
+      ],
+      "name": "Conflans Fin d'Oise"
+    },
+    {
+      "id": [
+        "STATION",
+        202
+      ],
+      "name": "Conflans Fin d'Oise"
+    },
+    {
+      "id": [
+        "STATION",
+        203
+      ],
+      "name": "Conflans Fin d'Oise"
+    },
+    {
+      "id": [
+        "STATION",
+        591
+      ],
+      "name": "Neuville Université"
+    },
+    {
+      "id": [
+        "STATION",
+        940
+      ],
+      "name": "Neuville Université"
+    },
+    {
+      "id": [
+        "STATION",
+        130
+      ],
+      "name": "Cergy Préfecture"
+    },
+    {
+      "id": [
+        "STATION",
+        129
+      ],
+      "name": "Cergy Préfecture"
+    },
+    {
+      "id": [
+        "STATION",
+        128
+      ],
+      "name": "Cergy le Haut"
+    },
+    {
+      "id": [
+        "STATION",
+        939
+      ],
+      "name": "Cergy le Haut"
+    },
+    {
+      "id": [
+        "STATION",
+        205
+      ],
+      "name": "Conflans Sainte-Honorine"
+    },
+    {
+      "id": [
+        "STATION",
+        313
+      ],
+      "name": "Gare de l'Est"
+    },
+    {
+      "id": [
+        "STATION",
+        305
+      ],
+      "name": "Gare de l'Est"
+    },
+    {
+      "id": [
+        "STATION",
+        315
+      ],
+      "name": "Gare de l'Est"
+    },
+    {
+      "id": [
+        "STATION",
+        314
+      ],
+      "name": "Gare de l'Est"
+    },
+    {
+      "id": [
+        "STATION",
+        308
+      ],
+      "name": "Gare du Nord"
+    },
+    {
+      "id": [
+        "STATION",
+        319
+      ],
+      "name": "Gare du Nord"
+    },
+    {
+      "id": [
+        "STATION",
+        328
+      ],
+      "name": "Gare du Nord"
+    },
+    {
+      "id": [
+        "STATION",
+        490
+      ],
+      "name": "Gare du Nord"
+    },
+    {
+      "id": [
+        "STATION",
+        318
+      ],
+      "name": "Gare du Nord"
+    },
+    {
+      "id": [
+        "STATION",
+        310
+      ],
+      "name": "Gare du Nord"
+    },
+    {
+      "id": [
+        "STATION",
+        309
+      ],
+      "name": "Gare du Nord"
+    },
+    {
+      "id": [
+        "STATION",
+        769
+      ],
+      "name": "Gare Saint-Lazare"
+    },
+    {
+      "id": [
+        "STATION",
+        1000
+      ],
+      "name": "Gare Saint-Lazare"
+    },
+    {
+      "id": [
+        "STATION",
+        822
+      ],
+      "name": "Gare Saint-Lazare"
+    },
+    {
+      "id": [
+        "STATION",
+        1016
+      ],
+      "name": "Gare Saint-Lazare"
+    },
+    {
+      "id": [
+        "STATION",
+        343
+      ],
+      "name": "Gare Saint-Lazare"
+    },
+    {
+      "id": [
+        "STATION",
+        771
+      ],
+      "name": "Gare Saint-Lazare"
+    },
+    {
+      "id": [
+        "STATION",
+        770
+      ],
+      "name": "Gare Saint-Lazare"
+    },
+    {
+      "id": [
+        "STATION",
+        997
+      ],
+      "name": "Ermont - Eaubonne"
+    },
+    {
+      "id": [
+        "STATION",
+        733
+      ],
+      "name": "République"
+    },
+    {
+      "id": [
+        "STATION",
+        61
+      ],
+      "name": "Belleville"
+    },
+    {
+      "id": [
+        "STATION",
+        762
+      ],
+      "name": "Saint-Denis Porte de Paris"
+    },
+    {
+      "id": [
+        "STATION",
+        815
+      ],
+      "name": "Saint-Denis"
+    },
+    {
+      "id": [
+        "STATION",
+        737
+      ],
+      "name": "Richelieu Drouot"
+    },
+    {
+      "id": [
+        "STATION",
+        726
+      ],
+      "name": "Réaumur Sébastopol"
+    },
+    {
+      "id": [
+        "STATION",
+        37
+      ],
+      "name": "Aulnay-sous-Bois"
+    },
+    {
+      "id": [
+        "STATION",
+        785
+      ],
+      "name": "Sartrouville"
+    },
+    {
+      "id": [
+        "STATION",
+        357
+      ],
+      "name": "Houilles - Carrières-sur-Seine"
+    },
+    {
+      "id": [
+        "STATION",
+        856
+      ],
+      "name": "Torcy"
+    },
+    {
+      "id": [
+        "STATION",
+        242
+      ],
+      "name": "Drancy"
+    }
+  ],
+  "loading": false,
+  "notifyingError": false,
+  "notifyingDuplicate": false,
+  "notifyingSuccess": false,
+  "cache": null
+}

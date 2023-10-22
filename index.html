@@ -179,6 +179,62 @@
 			font-size: 0.9em;
 		}
 
+		#count-stations-per-line {
+			padding: 0;
+			margin-top: 0.3em;
+			list-style-type: none;
+			display: flex;
+			flex-flow: row wrap;
+			justify-content: flex-start;
+			align-content: flex-start;
+			gap: 0.15em;
+		}
+
+		#count-stations-per-line li {
+			position: relative;
+			width: 1.8em;
+			height: 1.8em;
+		}
+
+		#count-stations-per-line li .progress,
+		#count-stations-per-line li .progress-background {
+			position: absolute;
+			width: 1.8em;
+			height: 1.8em;
+			box-sizing: border-box;
+			border: 2px solid black;
+		}
+		#count-stations-per-line li .progress.shape-rounded-square,
+		#count-stations-per-line li .progress-background.shape-rounded-square {
+			border-radius: 22%;
+		}
+		#count-stations-per-line li .progress.shape-circle,
+		#count-stations-per-line li .progress-background.shape-circle {
+			border-radius: 100%;
+		}
+		#count-stations-per-line li .progress {
+			border-color: white;
+			background-color: rgba(255, 255, 255, 0.0);
+		}
+		#count-stations-per-line li .progress.text-color-black {
+			border-color: black;
+			background-color: rgba(0, 0, 0, 0.0);
+		}
+		#count-stations-per-line li .progress-background {
+			border-color: black;
+			border: none;
+		}
+		#count-stations-per-line li .progress-background.text-color-black {
+			border: none;
+		}
+
+		#count-stations-per-line li .logo {
+			position: absolute;
+			width: calc(1.8em - 2px);
+			top: 1px;
+			right: 1px;
+		}
+
 		#menu button {
 			border: 0;
 			cursor: pointer;
@@ -253,6 +309,10 @@
 				margin: 0.5em 0;
 			}
 
+			#count-stations-per-line {
+				display: none;
+			}
+
 			#found {
 				display: none;
 			}
@@ -281,8 +341,10 @@
 					<li><span class="percentage" id="stat-communes">X</span> de communes trouvées</li>
 					<li><span class="percentage" id="stat-surface">X</span> d'hectares trouvés</li>
 					<li><span class="percentage" id="stat-inhabitants">X</span> d'habitants trouvés</li>
-					<li><span class="percentage" id="stat-stations">X</span> de gares trouvées</li>
 					<li><span class="percentage" id="stat-forest">0.0</span> de parcs et forêts trouvés</li>
+					<li><span class="percentage" id="stat-stations">X</span> de gares trouvées</li>
+					<ul id="count-stations-per-line">
+					</ul>
 				</ul>
 			</div>
 			<div id="menu">
@@ -338,6 +400,7 @@ const state = {
 			surface: 0, // in hectare
 			inhabitants: 0, // in thousands of people
 			stations: 0,
+			stationsPerLine: {}, // trainline_key => station count
 		},
 		stats: { // percentages
 			communes: 0.0,
@@ -351,6 +414,7 @@ const state = {
 			inhabitants: -1, // in thousands of people
 			stations: -1,
 		},
+		orderedTrainlines: [],
 		foundKeys: {}, // speed up duplicate detection
 
 		// We accumulate here the stations we find
@@ -387,6 +451,7 @@ const $dom = $DOMContentLoaded.then(() => {
 		"count-surface",
 		"count-inhabitants",
 		"count-stations",
+		"count-stations-per-line",
 	].reduce((acc, item) => {
 		acc[item] = document.getElementById(item);
 		return acc;
@@ -401,9 +466,14 @@ const $dom = $DOMContentLoaded.then(() => {
 // there is nothing like undo/redo system we do not need multiple copies of the
 // state so everything can happen in place.
 const Action = {
-	InitializeStationCache: (stations) => (dom, state) => {
-		state.cache.totalCounts.stations = stations.features.length;
+	InitializeStationCache: (stationData) => (dom, state) => {
+		state.cache.totalCounts.stations = 0;
+		for (const [key, trainline] of Object.entries(stationData.meta.trainlines)) {
+			state.cache.totalCounts.stations += trainline['station-count'];
+		}
+
 		state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
+		state.cache.orderedTrainlines = stationData.meta["ordered-trainlines"];
 		renderScoreboard(dom, state, 0);
 	},
 
@@ -462,6 +532,7 @@ const Action = {
 			...state.found
 		];
 		++state.cache.counts.stations;
+		++state.cache.counts.stationsPerLine[geoFeature.properties.trainline];
 		state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
 		renderScoreboard(dom, state, 0);
 
@@ -479,7 +550,8 @@ const Action = {
 
 	// This loads a brand new state and recomputes the cached values
 	// NB: This also has the effect of StopLoading after loading state
-	LoadState: (newState, stations) => (dom, state) => {
+	LoadState: (newState, stationData) => (dom, state) => {
+		const stations = stationData.stations;
 		state.found = newState.found;
 		state.cache = {
 			counts: { // raw values
@@ -487,6 +559,7 @@ const Action = {
 				surface: 0, // in hectare
 				inhabitants: 0, // in thousands of people
 				stations: 0,
+				stationsPerLine: {}, // trainline_key => station count
 			},
 			stats: { // percentages
 				communes: 0.0,
@@ -498,8 +571,9 @@ const Action = {
 				communes: -1,
 				surface: -1, // in hectare
 				inhabitants: -1, // in thousands of people
-				stations: stations.features.length,
+				stations: -1,
 			},
+			orderedTrainlines: [],
 			foundKeys: {}, // speed up duplicate detection
 
 			// We accumulate here the stations we find
@@ -508,6 +582,15 @@ const Action = {
 				features: [],
 			},
 		};
+
+		// TODO: avoid duplication with other actions (e.g., InitializeStationCache)
+		state.cache.totalCounts.stations = 0;
+		for (const [key, trainline] of Object.entries(stationData.meta.trainlines)) {
+			state.cache.counts.stationsPerLine[key] = 0;
+			state.cache.totalCounts.stations += trainline['station-count'];
+		}
+		state.cache.orderedTrainlines = stationData.meta["ordered-trainlines"];
+
 		// Build a temporary mapping from id to geoFeatures (TODO: use stationData.idToIndex)
 		const stationIdToIndex = {};
 		stations.features.map((entry, index) => {
@@ -518,11 +601,13 @@ const Action = {
 			if (item.id[0] === 'STATION') {
 				state.cache.foundKeys[item.id] = true;
 				const stationIndex = stationIdToIndex[item.id[1]];
+				const geoFeature = stations.features[stationIndex];
 				state.cache.foundStationsGeojson.features.push({
-					...stations.features[stationIndex],
+					...geoFeature,
 					id: item.id[1]
 				});
 				++state.cache.counts.stations;
+				++state.cache.counts.stationsPerLine[geoFeature.properties.trainline];
 				state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
 			}
 		});
@@ -561,11 +646,61 @@ function renderScoreboard(dom, state, newIndex) {
 	dom["count-stations"].innerText = state.cache.counts.stations;
 
 	dataLoader.$stationData.then(stationData => {
+		dom["count-stations-per-line"].replaceChildren(...state.cache.orderedTrainlines.map((trainline_key, index) => {
+			const count = state.cache.counts.stationsPerLine[trainline_key];
+			return renderScorboardLineCounter(trainline_key, count, stationData);
+		}));
+
 		dom.found.replaceChildren(...state.found.map((item, index) => {
 			const isNew = index == newIndex;
 			return renderScorboardFoundEntry(item, stationData, isNew);
 		}));
 	});
+}
+
+function renderScorboardLineCounter(trainline_key, count, stationData) {
+	const trainline = stationData.meta.trainlines[trainline_key];
+	const total = trainline['station-count'];
+	const angle = 2.0 * Math.PI * count / total;
+
+	const logo = `<img src="data/images/${trainline.logo}" class="logo" />`;
+	const radius = 50 * Math.sqrt(2.0);
+	const center = { x: 50, y: 50 };
+	const clipPoly = [
+		`${center.x}% ${center.y}%`,
+		`${center.x}% ${center.y - radius}%`,
+	];
+	if (angle > Math.PI / 4.0) {
+		clipPoly.push(`${center.x + radius}% ${center.y - radius}%`);
+	}
+	if (angle > 3.0 * Math.PI / 4.0) {
+		clipPoly.push(`${center.x + radius}% ${center.y + radius}%`);
+	}
+	if (angle > 5.0 * Math.PI / 4.0) {
+		clipPoly.push(`${center.x - radius}% ${center.y + radius}%`);
+	}
+	if (angle > 7.0 * Math.PI / 4.0) {
+		clipPoly.push(`${center.x - radius}% ${center.y - radius}%`);
+	}
+	const x = Math.cos(angle - Math.PI / 2.0);
+	const y = Math.sin(angle - Math.PI / 2.0);
+	clipPoly.push(`${center.x + x * radius}% ${center.y + y * radius}%`);
+
+	const progressStyle = count != total ? `clip-path: polygon(${clipPoly.join(", ")});` : "";
+	const progressStyleClass = `
+		text-color-${trainline['logo-style']['text-color']}
+		shape-${trainline['logo-style']['shape']}
+	`;
+
+	const progress = `
+		<div class="${progressStyleClass} progress-background"></div>
+		<div class="${progressStyleClass} progress" style="${progressStyle}"></div>
+	`;
+
+	const element = document.createElement('li');
+	element.setAttribute("title", `${trainline_key}: ${count} / ${total}`);
+	element.innerHTML = `${logo}${progress}`;
+	return element;
 }
 
 function renderScorboardFoundEntry(item, stationData, isNew) {
@@ -685,8 +820,8 @@ const dataLoader = {
 		fetch('data/memory-pour-idf-stations.geojson')
 		.then(response => response.json()),
 
-	$stationsMeta:
-		fetch('data/memory-pour-idf-stations-metadata.geojson')
+	$meta:
+		fetch('data/memory-pour-idf-metadata.json')
 		.then(response => response.json()),
 
 	// Post-operations are populated below because the rely on other members of
@@ -700,7 +835,8 @@ const dataLoader = {
 };
 
 
-dataLoader.$stationData = Promise.all([dataLoader.$stations, dataLoader.$stationsMeta])
+// Just bundle stations and meta together
+dataLoader.$stationData = Promise.all([dataLoader.$stations, dataLoader.$meta])
 .then(([stations, meta]) => {
 	const idToIndex = {};
 	stations.features.map((entry, index) => {
@@ -782,8 +918,8 @@ $dom.then(dom => {
 	renderSearchForm(dom, state);
 });
 
-Promise.all([$dom, dataLoader.$stations])
-.then(([dom, stations]) => {
+Promise.all([$dom, dataLoader.$stationData])
+.then(([dom, stationData]) => {
 	const savedStateJson = localStorage.getItem("savedState");
 	if (savedStateJson !== null) {
 		let savedState;
@@ -794,7 +930,7 @@ Promise.all([$dom, dataLoader.$stations])
 			console.log(e);
 			return;
 		}
-		dispatch(dom, Action.LoadState(savedState, stations));
+		dispatch(dom, Action.LoadState(savedState, stationData));
 	}
 
 	dom["btn-export"].addEventListener('click', () => {
@@ -807,7 +943,7 @@ Promise.all([$dom, dataLoader.$stations])
 		dispatch(dom, Action.StartLoading());
 		importJsonFile()
 		.then((json) => {
-			dispatch(dom, Action.LoadState(json, stations));
+			dispatch(dom, Action.LoadState(json, stationData));
 		});
 	});
 });
@@ -857,7 +993,7 @@ const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$statio
 		});
 	});
 
-	dispatch(dom, Action.InitializeStationCache(stations));
+	dispatch(dom, Action.InitializeStationCache(stationData));
 	dispatch(dom, Action.StopLoading());
 });
 
