@@ -41,11 +41,89 @@
 			pointer-events: auto;
 		}
 
-		#search-input-container {
+		#search-form-container {
 			position: relative;
 			width: 100%;
 			max-width: 30em;
 			margin: 1.5em auto;
+			pointer-events: auto;
+		}
+
+		#search-form {
+			margin-right: 3.5em;
+		}
+
+		#search-input-container {
+			position: relative;
+		}
+
+		#btn-toggle-menu,
+		#search-input,
+		#menu-container {
+			background-color: white;
+			box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+			border-radius: 1.5em;
+			border: 1px solid #ccc;
+		}
+
+		#btn-toggle-menu {
+			position: absolute;
+			right: 0.1em;
+			top: 0.1em;
+			width: 2.9em;
+			height: 2.9em;
+			display: block;
+			box-sizing: border-box;
+			cursor: pointer;
+		}
+		#btn-toggle-menu:hover {
+			background-color: #f8f8f8;
+		}
+		#btn-toggle-menu.active {
+			border: 2px solid #0060df;
+			background-color: #f4f4f4;
+		}
+
+		#menu-container {
+			position: absolute;
+			right: 0;
+			width: 100%;
+			max-width: 20em;
+			margin-top: 0.5em;
+			padding: 0.3em 0;
+			border-radius: 0.5em;
+			overflow: hidden;
+
+			display: flex;
+			flex-flow: column nowrap;
+			justify-content: flex-start;
+			align-content: flex-start;
+
+			max-height: 0;
+			visibility: hidden;
+			transition-property: max-height;
+			transition-duration: 0.5s;
+		}
+		#menu-container.opened {
+			max-height: 100em;
+			visibility: visible;
+		}
+
+		#menu-container button {
+			display: block;
+			text-align: left;
+			font-size: 0.9em;
+			margin: 0;
+			border: none;
+			cursor: pointer;
+			background: none;
+			height: 3em;
+			line-height: 2em;
+			padding: 0.2em 1em;
+			line-height: 2em;
+		}
+		#menu-container button:hover {
+			background-color: rgba(0, 0, 0, 0.1);
 		}
 
 		#search-input {
@@ -55,12 +133,8 @@
 			height: 2.5em;
 			margin: 0;
 			padding: 0.8em;
-			pointer-events: auto;
 
 			font-size: 1.2em;
-			box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
-			border-radius: 1em;
-  			border: 1px solid #ccc;
 		}
 
 		.notify-error #search-input {
@@ -235,13 +309,6 @@
 			right: 1px;
 		}
 
-		#menu button {
-			border: 0;
-			cursor: pointer;
-			margin: 0;
-			margin-top: 1em;
-		}
-
 		#found {
 			margin: 0;
 			padding: 0;
@@ -291,14 +358,14 @@
 			}
 
 			#search-input-container {
-				margin-top: 13.5em;
+				margin-top: 11em;
 			}
 
 			#scoreboard {
 				left: calc((100vw - 30em) / 2);
 				width: 100%;
 				max-width: 30em;
-				height: 14em;
+				height: 11.5em;
 				padding-top: 0.4em;
 				overflow: hidden;
 				font-size: 0.9em;
@@ -325,13 +392,27 @@
 		<div id="map-container">
 			<div id="map"></div>
 			<div id="overlay">
-				<form id="search-form" action="javascript:void(0);">
-					<div id="search-input-container">
-						<input id="search-input" type="text" name="guess" placeholder="Entrez le nom d'une commune ou gare" disabled />
-						<div id="search-loader"></div>
-						<div id="search-notification">Test</div>
+				<div id="search-form-container">
+					<form id="search-form" action="javascript:void(0);">
+						<div id="search-input-container">
+							<input id="search-input" type="text" name="guess" placeholder="Entrez le nom d'une commune ou gare" disabled />
+							<div id="search-loader"></div>
+							<div id="search-notification">Test</div>
+						</div>
+					</form>
+					<div id="btn-toggle-menu">
+						<svg viewBox="0 0 100 100" style="fill: #aaa">
+							<circle cx="50" cy="35" r="4" />
+							<circle cx="50" cy="50" r="4" />
+							<circle cx="50" cy="65" r="4" />
+						</svg>
 					</div>
-				</form>
+					<div id="menu-container">
+						<button id="btn-export">Exporter la partie</button>
+						<button id="btn-import">Importer une partie</button>
+						<button id="btn-about">À propos</button>
+					</div>
+				</div>
 			</div>
 		</div>
 
@@ -346,10 +427,6 @@
 					<ul id="count-stations-per-line">
 					</ul>
 				</ul>
-			</div>
-			<div id="menu">
-				<button id="btn-export">Export</button>
-				<button id="btn-import">Import</button>
 			</div>
 			<hr />
 			<div>
@@ -389,6 +466,7 @@ const state = {
 
 	// Temporary state that does not need to be serialized
 	loading: true,
+	showMenu: false,
 	notifyingError: false,
 	notifyingDuplicate: false,
 	notifyingSuccess: false,
@@ -440,8 +518,6 @@ const $dom = $DOMContentLoaded.then(() => {
 		"search-loader",
 		"search-notification",
 		"scoreboard",
-		"btn-export",
-		"btn-import",
 		"found",
 		"stat-communes",
 		"stat-surface",
@@ -452,6 +528,11 @@ const $dom = $DOMContentLoaded.then(() => {
 		"count-inhabitants",
 		"count-stations",
 		"count-stations-per-line",
+		"btn-toggle-menu",
+		"menu-container",
+		"btn-export",
+		"btn-import",
+		"btn-about",
 	].reduce((acc, item) => {
 		acc[item] = document.getElementById(item);
 		return acc;
@@ -485,6 +566,16 @@ const Action = {
 	StopLoading: () => (dom, state) => {
 		state.loading = false;
 		renderSearchForm(dom, state);
+	},
+
+	ToggleMenu: () => (dom, state) => {
+		state.showMenu = !state.showMenu;
+		renderMenu(dom);
+	},
+
+	CloseMenu: () => (dom, state) => {
+		state.showMenu = false;
+		renderMenu(dom);
 	},
 
 	// Invoked when the player query does not match any entry
@@ -633,6 +724,10 @@ function dispatch(dom, action) {
 
 ///////////////////////////////////////////////////////////
 // Render functions (responsible for updating the DOM)
+
+function renderMenu(dom) {
+	dom["menu-container"].setAttribute("class", state.showMenu ? "opened" : "");
+}
 
 function renderScoreboard(dom, state, newIndex) {
 	dom["stat-communes"].innerText = state.cache.stats.communes.toFixed(1);
@@ -916,6 +1011,20 @@ dataLoader.$memory = dataLoader.$stations.then(stations => {
 $dom.then(dom => {
 	renderScoreboard(dom, state);
 	renderSearchForm(dom, state);
+
+	dom["btn-toggle-menu"].addEventListener('mousedown', () => {
+		dom["btn-toggle-menu"].setAttribute("class", "active");
+		document.addEventListener('mouseup', () => {
+			dom["btn-toggle-menu"].setAttribute("class", "");
+		});
+	});
+	dom["btn-toggle-menu"].addEventListener('click', () => {
+		dispatch(dom, Action.ToggleMenu())
+	});
+
+	dom["btn-about"].addEventListener('click', () => {
+		window.open("https://github.com/eliemichel/MemoryIDF/blob/main/about.md", '_blank');
+	});
 });
 
 Promise.all([$dom, dataLoader.$stationData])
@@ -934,12 +1043,17 @@ Promise.all([$dom, dataLoader.$stationData])
 	}
 
 	dom["btn-export"].addEventListener('click', () => {
+		dispatch(dom, Action.CloseMenu());
+
 		exportFile("memory-pour-idf.json", JSON.stringify({
 			...state,
 			cache: null,
 		}, null, 2));
 	});
+
 	dom["btn-import"].addEventListener('click', () => {
+		dispatch(dom, Action.CloseMenu());
+
 		dispatch(dom, Action.StartLoading());
 		importJsonFile()
 		.then((json) => {
