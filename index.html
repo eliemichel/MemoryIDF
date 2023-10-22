@@ -147,6 +147,13 @@
 			to { max-height: 2.5em; padding: 0.7em 1em; }
 		}
 
+		#found li .logo {
+			display: inline-block;
+			width: 1.1em;
+			margin-right: 0.5em;
+			vertical-align: sub;
+		}
+
 		.percentage {
 			font-weight: bold;
 			font-size: 1.25em;
@@ -194,7 +201,6 @@
 				</ul>
 
 				<ul id="found">
-					<li>foo</li>
 				</ul>
 			</div>
 		</div>
@@ -395,11 +401,6 @@ function dispatch(dom, action) {
 
 // Render functions are responsible for updating the DOM
 function renderScoreboard(dom, state, newIndex) {
-	dom.found.innerHTML = state.found.reduce((acc, item, index) => {
-		const className = index == newIndex ? "new" : "";
-		return acc + `<li class="${className}" title="Trouvé le XXX à XXXh">${item.name}</li>`;
-	}, "");
-
 	dom["stat-communes"].innerText = state.cache.stats.communes.toFixed(1);
 	dom["stat-surface"].innerText = state.cache.stats.surface.toFixed(1);
 	dom["stat-inhabitants"].innerText = state.cache.stats.inhabitants.toFixed(1);
@@ -409,6 +410,21 @@ function renderScoreboard(dom, state, newIndex) {
 	dom["count-surface"].innerText = state.cache.counts.surface.toFixed(1);
 	dom["count-inhabitants"].innerText = state.cache.counts.inhabitants.toFixed(1);
 	dom["count-stations"].innerText = state.cache.counts.stations;
+
+	dataLoader.$stationData.then(stationData => {
+		dom.found.innerHTML = state.found.reduce((acc, item, index) => {
+			const className = index == newIndex ? "new" : "";
+
+			var logo = "";
+			if (item.id[0] == 'STATION' && stationData != null) {
+				const index = stationData.idToIndex[item.id[1]];
+				const props = stationData.stations.features[index].properties;
+				logo = `<img src="${props.logo}" class="logo" />`;
+			}
+
+			return acc + `<li class="${className}" title="Trouvé le XXX à XXXh">${logo}${item.name}</li>`;
+		}, "");
+	});
 }
 
 function renderSearchForm(dom, state) {

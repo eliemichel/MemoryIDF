@@ -2,6 +2,7 @@ from pathlib import Path
 import json
 from dataclasses import dataclass, field
 from typing import List, Dict
+from urllib.request import urlretrieve
 
 #---------------------------------------------
 
@@ -10,7 +11,9 @@ def main():
 	stations = loadData("emplacement-des-gares-idf.geojson")
 
 	reg = buildRegistry(traces, stations)
-	reg.prettyPrint()
+	#reg.prettyPrint()
+
+	reg = downloadImages(reg)
 
 	new_stations = generateNewStations(stations, reg)
 	exportData(new_stations, "memory-pour-idf-stations.geojson")
@@ -20,6 +23,7 @@ def main():
 
 	station_metadata = generateStationMetadata(reg)
 	exportData(station_metadata, "memory-pour-idf-stations-metadata.geojson")
+
 
 #---------------------------------------------
 
@@ -39,6 +43,8 @@ def exportData(data, filename):
 class RegistryLineEntry:
 	color: str
 	logo: str
+	logo_svg_url: str | None = None
+	logo_filename: str | None = None
 
 LineKey = str
 
@@ -77,8 +83,13 @@ class Registry:
 				"3bis": "3B",
 				"3": "3A",
 			}.get(line, line)
-		if mode == 'TER' and line == 'C':
+		if mode == 'TER' and line in {'C', 'D'}:
 			mode = 'RER'
+		if mode == 'RER' and line == 'TER':
+			line = 'D'
+		if mode == 'TER' and line == 'TER':
+			mode = 'RER'
+			line = 'C'
 		return (mode, line)
 
 	@staticmethod
@@ -129,11 +140,36 @@ def buildRegistry(traces, stations):
 	for station in stations['features']:
 		props = station['properties']
 		id = props['id_gares']
-		key = props['nom_zdc']
-		entry = reg.connected_stations.get(key, RegistryStationEntry())
+		name = props['nom_zdc']
+		entry = reg.connected_stations.get(name, RegistryStationEntry())
 		entry.ids.append(id)
-		reg.connected_stations[key] = entry
+		reg.connected_stations[name] = entry
 
+		picto = props['picto']
+		if picto is not None:
+			name = picto['filename']
+			url = f"https://data.iledefrance-mobilites.fr/explore/dataset/emplacement-des-gares-idf/files/{picto['id']}/download/"
+			key = Registry.makeKeyFromStationProps(props)
+			reg.trainlines[key].logo_svg_url = url
+			reg.trainlines[key].logo_filename = name
+
+	return reg
+
+#---------------------------------------------
+
+def downloadImages(reg):
+	for key, entry in reg.trainlines.items():
+		if entry.logo_svg_url is not None:
+			assert(entry.logo_filename is not None)
+			logo_url = entry.logo_svg_url
+		else:
+			entry.logo_filename = Registry.formatKey(key) + ".png"
+			logo_url = entry.logo
+		if logo_url is not None:
+			filename = DATA_ROOT.joinpath("images", entry.logo_filename)
+			if not filename.exists():
+				print(f"Downloading '{logo_url}' into '{filename}'...")
+				urlretrieve(logo_url, filename)
 	return reg
 
 #---------------------------------------------
@@ -178,7 +214,7 @@ def generateNewStations(stations, reg):
 		meta = reg.trainlines.get(key)
 		assert(meta is not None)
 		props['color'] = '#' + meta.color
-		props['logo'] = meta.logo
+		props['logo'] = "data/images/" + meta.logo_filename
 		return [props]
 
 	return filterGeojsonProperties(stations, filterProperties)

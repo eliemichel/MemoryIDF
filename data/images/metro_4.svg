@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- Generator: Adobe Illustrator 16.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" id="Calque_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 width="283.46px" height="283.46px" viewBox="0 0 283.46 283.46" style="enable-background:new 0 0 283.46 283.46;"
+	 xml:space="preserve">
+<g>
+	<defs>
+		<rect id="SVGID_1_" width="283.46" height="283.46"/>
+	</defs>
+	<clipPath id="SVGID_2_">
+		<use xlink:href="#SVGID_1_"  style="overflow:visible;"/>
+	</clipPath>
+	<path style="clip-path:url(#SVGID_2_);fill:#D1448F;" d="M0,141.732C0,63.46,63.45,0,141.722,0
+		c78.283,0,141.743,63.46,141.743,141.732c0,78.271-63.46,141.731-141.743,141.731C63.45,283.464,0,220.004,0,141.732"/>
+	<path style="clip-path:url(#SVGID_2_);fill-rule:evenodd;clip-rule:evenodd;fill:#FFFFFF;" d="M189.094,185.338v-23.403h-17.643
+		V66.399h-39.167l-58.299,91.064v27.874h67.661v31.275h29.805v-31.275H189.094z M141.646,161.935H99.739l30.635-48.078
+		c5.961-9.371,10.211-18.523,10.852-21.073h0.42V161.935z"/>
+</g>
+</svg>
