@@ -194,7 +194,7 @@
 
 		#found li {
 			display: block;
-			padding: 0.7em 1em;
+			padding: 0.7em 0.7em;
 			margin: 0.5em 0;
 			border-radius: 0.3em;
 			font-weight: bold;
@@ -454,7 +454,7 @@ const Action = {
 	},
 
 	AppendFoundStationItem: (item, geoFeature) => (dom, state) => {
-		if (state.cache.foundKeys[item.id]) return; // TODO trigger "déjà trouvé"
+		if (state.cache.foundKeys[item.id]) return;
 		state.cache.foundKeys[item.id] = true;
 
 		state.found = [
@@ -466,9 +466,10 @@ const Action = {
 		renderScoreboard(dom, state, 0);
 
 		// Update map
-		state.cache.foundStationsGeojson.features.push(
-			geoFeature
-		);
+		state.cache.foundStationsGeojson.features.push({
+			...geoFeature,
+			id: item.id[1]
+		});
 		$map.then(map => {
 			map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
 		});
@@ -517,9 +518,10 @@ const Action = {
 			if (item.id[0] === 'STATION') {
 				state.cache.foundKeys[item.id] = true;
 				const stationIndex = stationIdToIndex[item.id[1]];
-				state.cache.foundStationsGeojson.features.push(
-					stations.features[stationIndex]
-				);
+				state.cache.foundStationsGeojson.features.push({
+					...stations.features[stationIndex],
+					id: item.id[1]
+				});
 				++state.cache.counts.stations;
 				state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
 			}
@@ -559,19 +561,53 @@ function renderScoreboard(dom, state, newIndex) {
 	dom["count-stations"].innerText = state.cache.counts.stations;
 
 	dataLoader.$stationData.then(stationData => {
-		dom.found.innerHTML = state.found.reduce((acc, item, index) => {
-			const className = index == newIndex ? "new" : "";
-
-			var logo = "";
-			if (item.id[0] == 'STATION' && stationData != null) {
-				const index = stationData.idToIndex[item.id[1]];
-				const props = stationData.stations.features[index].properties;
-				logo = `<img src="${props.logo}" class="logo" />`;
-			}
-
-			return acc + `<li class="${className}" title="Trouvé le XXX à XXXh">${logo}${item.name}</li>`;
-		}, "");
+		dom.found.replaceChildren(...state.found.map((item, index) => {
+			const isNew = index == newIndex;
+			return renderScorboardFoundEntry(item, stationData, isNew);
+		}));
 	});
+}
+
+function renderScorboardFoundEntry(item, stationData, isNew) {
+	const className = isNew ? "new" : "";
+
+	var logo = "";
+	var center = [0, 0];
+	if (item.id[0] == 'STATION' && stationData != null) {
+		const index = stationData.idToIndex[item.id[1]];
+		const feature = stationData.stations.features[index];
+		const props = feature.properties;
+		logo = `<img src="${props.logo}" class="logo" />`;
+		center = feature.geometry.coordinates.slice();
+	}
+
+	const element = document.createElement('li');
+	element.setAttribute("class", isNew ? "new" : "");
+	element.setAttribute("title", "Trouvé le XXX à XXXh");
+	element.innerHTML = `${logo}${item.name}`;
+
+	$map.then(map => {
+		element.addEventListener('mouseenter', () => {
+			map.setFeatureState(
+				{ source: 'found-stations', id: item.id[1] },
+				{ active: true }
+			);
+		});
+		element.addEventListener('mouseleave', () => {
+			map.setFeatureState(
+				{ source: 'found-stations', id: item.id[1] },
+				{ active: false }
+			);
+		});
+		element.addEventListener('click', () => {
+			map.flyTo({
+				center,
+				zoom: 13,
+			});
+		});
+	});
+
+	return element;
 }
 
 function renderSearchForm(dom, state) {
@@ -854,16 +890,16 @@ Promise.all([$map, dataLoader.$traces])
 .then(([map, traces]) => {
 
 	map.addSource('traces', {
-		'type': 'geojson',
-		'data': traces
+		type: 'geojson',
+		data: traces
 	});
 
 	// Add a symbol layer showing all train lines
 	map.addLayer({
-		'id': 'line-train',
-		'type': 'line',
-		'source': 'traces',
-		"paint": {
+		id: 'line-train',
+		type: 'line',
+		source: 'traces',
+		paint: {
 			"line-color": ["get", "color"],
 			"line-width": 3,
 			//"line-offset": ["*", 3, ["interpolate",
@@ -930,17 +966,17 @@ Promise.all([$map, dataLoader.$stations])
 
 	// Add a GeoJSON source containing place coordinates and information.
 	map.addSource('stations', {
-		'type': 'geojson',
-		'data': stations
+		type: 'geojson',
+		data: stations
 	});
 
 	// Add a symbol layer showing all train stations before they are found
 	map.addLayer({
-		'id': 'pending-stations',
-		'type': 'circle',
-		'source': 'stations',
-		'minzoom': 11,
-		'paint': {
+		id: 'pending-stations',
+		type: 'circle',
+		source: 'stations',
+		minzoom: 11,
+		paint: {
 			//'circle-color': ['get', 'color'],
 			'circle-radius': 3,
 			'circle-stroke-color': '#000000',
@@ -958,33 +994,45 @@ Promise.all([$map, dataLoader.$stations])
 
 	// Add a symbol layer showing all train stations that have been found
 	map.addLayer({
-		'id': 'found-stations',
-		'type': 'circle',
-		'source': 'found-stations',
-		'paint': {
-			'circle-radius': 4,
+		id: 'found-stations',
+		type: 'circle',
+		source: 'found-stations',
+		paint: {
+			'circle-radius': ["case",
+				["boolean", ["feature-state", "active"], false],
+				6,
+				4,
+			],
 			'circle-stroke-color': '#000000',
 			'circle-stroke-opacity': 0.7,
-			'circle-stroke-width': 1,
 			'circle-color': ['get', 'color'],
-			//'circle-color': '#ffffff',
+			'circle-stroke-width': 1,
+			'circle-stroke-color': "#000000",
 		}
 	});
 	map.addLayer({
-		'id': 'found-stations-labels',
-		'type': 'symbol',
-		'source': 'found-stations',
-		'layout': {
+		id: 'found-stations-labels',
+		type: 'symbol',
+		source: 'found-stations',
+		layout: {
 			'text-anchor': 'bottom',
 			'text-offset': [0, -0.5],
 			'text-field': ['get', 'nom_zdc'],
 			'text-size': 13,
 			'text-font': ["Open Sans Regular", "Arial Unicode MS Regular"],
 		},
-		"paint": {
-			"text-halo-blur": 2,
-			"text-halo-color": "rgba(255, 255, 255, 1.0)",
-			"text-halo-width": 1,
+		paint: {
+			'text-halo-blur': ["case",
+				["boolean", ["feature-state", "active"], false],
+				1,
+				2,
+			],
+			'text-halo-color': ["case",
+				["boolean", ["feature-state", "active"], false],
+				"rgba(255, 200, 80, 1.0)",
+				"rgba(255, 255, 255, 1.0)",
+			],
+			'text-halo-width': 1,
 		}
 	});
 
@@ -995,6 +1043,8 @@ Promise.all([$map, dataLoader.$stations])
 		const coordinates = e.features[0].geometry.coordinates.slice();
 		const props = e.features[0].properties;
 		console.log(props);
+		console.log("id");
+		console.log(e.features[0].id);
 
 		// Ensure that if the map is zoomed out such that multiple
 		// copies of the feature are visible, the popup appears
@@ -1042,6 +1092,7 @@ Promise.all([$map, dataLoader.$stations])
 	});
 });
 	</script>
+}
 
 </body>
 </html>
