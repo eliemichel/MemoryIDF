@@ -87,9 +87,6 @@ class Registry:
 			mode = 'RER'
 		if mode == 'RER' and line == 'TER':
 			line = 'D'
-		if mode == 'TER' and line == 'TER':
-			mode = 'RER'
-			line = 'C'
 		return (mode, line)
 
 	@staticmethod
