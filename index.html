@@ -835,6 +835,9 @@ function renderSearchForm(dom, state) {
 		//input.selectionEnd = input.value.length;
 		input.focus();
 	}
+	if (state.notifyingSuccess) {
+		input.value = "";
+	}
 	form.setAttribute("class",
 		state.notifyingError ? "notify-error" :
 		state.notifyingDuplicate ? "notify-duplicate" :
