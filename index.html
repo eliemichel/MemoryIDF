@@ -373,6 +373,30 @@
 			content: '%';
 		}
 
+		.station-popup {
+			margin: 0.5em 0;
+		}
+		.station-popup .title {
+			display: block;
+			font-weight: bold;
+			font-size: 1.3em;
+		}
+		.station-popup .subtitle {
+			display: block;
+			font-style: italic;
+			font-size: 1em;
+		}
+		.station-popup .logos {
+			display: flex;
+			flex-flow: row wrap;
+			justify-content: flex-start;
+			align-content: flex-start;
+			gap: 0.1em;
+		}
+		.station-popup img.trainline {
+			width: 1.5em;
+		}
+
 		@media (max-width: 1000px) {
 			#map-container {
 				width: 100%;
@@ -432,6 +456,7 @@
 					<div id="menu-container">
 						<button id="btn-export">Exporter la partie</button>
 						<button id="btn-import">Importer une partie</button>
+						<button id="btn-import-memory-paris">Importer depuis memory.pour.paris</button>
 						<button id="btn-toggle-answers">Masquer les réponses</button>
 						<button id="btn-about">À propos</button>
 					</div>
@@ -559,6 +584,7 @@ const $dom = $DOMContentLoaded.then(() => {
 		"menu-container",
 		"btn-export",
 		"btn-import",
+		"btn-import-memory-paris",
 		"btn-toggle-answers",
 		"btn-about",
 		"btn-show-answers",
@@ -666,8 +692,8 @@ const Action = {
 		}
 	},
 
-	AppendFoundStationItem: (item, geoFeature) => (dom, state) => {
-		if (state.cache.foundKeys[item.id]) return;
+	_appendStationItemWithoutRender: (item, geoFeature, state) => {
+		if (state.cache.foundKeys[item.id]) return false;
 		state.cache.foundKeys[item.id] = true;
 
 		state.found = [
@@ -677,18 +703,35 @@ const Action = {
 		++state.cache.counts.stations;
 		++state.cache.counts.stationsPerLine[geoFeature.properties.trainline];
 		state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
-		renderScoreboard(dom, state, 0);
 
-		// Update map
+		// Update map data
 		state.cache.foundStationsGeojson.features.push({
 			...geoFeature,
 			id: item.id[1]
 		});
+
+		return true;
+	},
+
+	_renderAfterNewStationItem: (dom, state) => {
 		$map.then(map => {
 			map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
 		});
 
 		localStorage.setItem("savedState", JSON.stringify(state));
+	},
+
+	AppendFoundStationItem: (item, geoFeature) => (dom, state) => {
+		if (!Action._appendStationItemWithoutRender(item, geoFeature, state)) return;
+		Action._renderAfterNewStationItem(dom, state);
+	},
+
+	AppendMultipleStationItems: (entries) => (dom, state) => {
+		for (const [item, geoFeature] of entries) {
+			Action._appendStationItemWithoutRender(item, geoFeature, state);
+		}
+		Action._renderAfterNewStationItem(dom, state);
+		renderScoreboard(dom, state);
 	},
 
 	// This loads a brand new state and recomputes the cached values
@@ -822,7 +865,7 @@ function renderScorboardLineCounter(trainline_key, count, stationData) {
 	const total = trainline['station-count'];
 	const angle = 2.0 * Math.PI * (count | 0) / total;
 
-	const logo = `<img src="data/images/${trainline.logo}" class="logo" />`;
+	const logo = `<img src="data/images/${trainline.logo}" class="logo" alt="${trainline_key}" />`;
 	const radius = 50 * Math.sqrt(2.0);
 	const center = { x: 50, y: 50 };
 	const clipPoly = [
@@ -1143,8 +1186,50 @@ join($dom, dataLoader.$stationData, (dom, stationData) => {
 
 		dispatch(dom, Action.StartLoading());
 		importJsonFile()
-		.then((json) => {
+		.then(json => {
 			dispatch(dom, Action.LoadState(json, stationData));
+		});
+	});
+
+	dom["btn-import-memory-paris"].addEventListener('click', () => {
+		dispatch(dom, Action.CloseMenu());
+
+		dispatch(dom, Action.StartLoading());
+		importJsonFile()
+		.then(memoryParisJson => {
+			const newEntries = [];
+			const convertFromMemoryParis = stationData.meta["from-memory-paris"];
+			for (const memoryParisIdx of memoryParisJson) {
+				const stationId = convertFromMemoryParis[memoryParisIdx];
+				if (stationId === undefined) {
+					if (String(memoryParisIdx)[0] == '1') {
+						console.warn(`Could not import index ${memoryParisIdx} from memory.pour.paris.`);
+					}
+				} else {
+					const index = stationData.idToIndex[stationId];
+					// FIXME: Code duplication here!
+					const props = stationData.stations.features[index].properties;
+					const connectedIds = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
+
+					for (const id of connectedIds) {
+
+						const index = stationData.idToIndex[id];
+						if (index === undefined) return; // happens when the station has been removed because on an ignored train line
+						const geoFeature = stationData.stations.features[index];
+						const props = geoFeature.properties;
+						const item = {
+							id: ['STATION', props.id_gares],
+							name: props.nom_zdc,
+						};
+						newEntries.push([ item, geoFeature ]);
+
+					}
+				}
+
+			}
+
+			dispatch(dom, Action.AppendMultipleStationItems(newEntries));
+			dispatch(dom, Action.StopLoading());
 		});
 	});
 });
@@ -1278,9 +1363,6 @@ const $map = new Promise((resolve, reject) => {
 		});
 	}
 
-	////////////////////////////////////
-	// Stations
-
 	// Add a GeoJSON source containing place coordinates and information.
 	map.addSource('stations', {
 		type: 'geojson',
@@ -1353,6 +1435,28 @@ const $map = new Promise((resolve, reject) => {
 		}
 	});
 
+	renderMap(map, state);
+
+	return map;
+});
+
+join($map, dataLoader.$traces, (map, traces) => {
+	map.getSource('traces-ter').setData(traces);
+	map.getSource('traces-no-ter').setData(traces);
+});
+
+join($map, dataLoader.$stations, (map, stations) => {
+	map.getSource('stations').setData(stations);
+});
+
+join($map, dataLoader.$communes, (map, communes) => {
+	map.getSource('communes').setData(communes);
+});
+
+join($map, dataLoader.$stationData, (map, stationData) => {
+	// Popups
+	const stations = stationData.stations;
+
 	// When a click event occurs on a train station, open a popup at the
 	// location of the feature, with description HTML from its properties.
 	map.on('click', 'found-stations', (e) => {
@@ -1367,26 +1471,27 @@ const $map = new Promise((resolve, reject) => {
 			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
 		}
 
+		const connectedIds = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
+		const connectedTrainlines = new Set();
+		for (const id of connectedIds) {
+			const index = stationData.idToIndex[id];
+			const props = stations.features[index].properties;
+			connectedTrainlines.add(props.trainline);
+		}
+		const logos = [];
+		for (const trainline of stationData.meta["ordered-trainlines"]) {
+			if (connectedTrainlines.has(trainline)) {
+				const url = stationData.meta.trainlines[trainline].logo;
+				logos.push(`<img src="data/images/${url}" alt="${trainline}" class="trainline" />`)
+			}
+		}
+
 		const description = `
-		<img src="${props.picto}" alt="logo" style="max-width: 30%;" />
-		<ul>
-		<li>exploitant: ${props.exploitant}</li>
-		<li>idf: ${props.idf != 0}</li>
-		<li>indice_lig: ${props.indice_lig}</li>
-		<li>mode: ${props.mode}</li>
-		<li>nom_gares: ${props.nom_gares}</li>
-		<li>nom_iv: ${props.nom_iv}</li>
-		<li>nom_so_gar: ${props.nom_so_gar}</li>
-		<li>nom_zda: ${props.nom_zda}</li>
-		<li>nom_zdc: ${props.nom_zdc}</li>
-		<li>principal: ${props.principal != 0}</li>
-		<li>res_com: ${props.res_com}</li>
-		<li>metro: ${props.termetro != "0"}</li>
-		<li>rer: ${props.terrer != "0"}</li>
-		<li>train: ${props.tertrain != "0"}</li>
-		<li>tramway: ${props.tertram != "0"}</li>
-		<li>val: ${props.terval != "0"}</li>
-		</ul>
+		<div class="station-popup">
+		<span class="title">${props.nom_gares}</span>
+		<span class="subtitle">${props.nom_so_gar ? props.nom_so_gar : ""}</span>
+		<div class="logos">${logos.join('')}</div>
+		</div>
 		`;
 
 		new mapboxgl.Popup()
@@ -1404,23 +1509,6 @@ const $map = new Promise((resolve, reject) => {
 	map.on('mouseleave', 'found-stations', () => {
 		map.getCanvas().style.cursor = '';
 	});
-
-	renderMap(map, state);
-
-	return map;
-});
-
-join($map, dataLoader.$traces, (map, traces) => {
-	map.getSource('traces-ter').setData(traces);
-	map.getSource('traces-no-ter').setData(traces);
-});
-
-join($map, dataLoader.$stations, (map, stations) => {
-	map.getSource('stations').setData(stations);
-});
-
-join($map, dataLoader.$communes, (map, communes) => {
-	map.getSource('communes').setData(communes);
 });
 
 	</script>
