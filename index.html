@@ -370,6 +370,30 @@
 			content: '%';
 		}
 
+		.station-popup {
+			margin: 0.5em 0;
+		}
+		.station-popup .title {
+			display: block;
+			font-weight: bold;
+			font-size: 1.3em;
+		}
+		.station-popup .subtitle {
+			display: block;
+			font-style: italic;
+			font-size: 1em;
+		}
+		.station-popup .logos {
+			display: flex;
+			flex-flow: row wrap;
+			justify-content: flex-start;
+			align-content: flex-start;
+			gap: 0.1em;
+		}
+		.station-popup img.trainline {
+			width: 1.5em;
+		}
+
 		@media (max-width: 1000px) {
 			#map-container {
 				width: 100%;
@@ -819,7 +843,7 @@ function renderScorboardLineCounter(trainline_key, count, stationData) {
 	const total = trainline['station-count'];
 	const angle = 2.0 * Math.PI * (count | 0) / total;
 
-	const logo = `<img src="data/images/${trainline.logo}" class="logo" />`;
+	const logo = `<img src="data/images/${trainline.logo}" class="logo" alt="${trainline_key}" />`;
 	const radius = 50 * Math.sqrt(2.0);
 	const center = { x: 50, y: 50 };
 	const clipPoly = [
@@ -1286,8 +1310,9 @@ Promise.all([$map, dataLoader.$traces])
 	}
 });
 
-Promise.all([$map, dataLoader.$stations])
-.then(([map, stations]) => {
+Promise.all([$map, dataLoader.$stationData])
+.then(([map, stationData]) => {
+	const stations = stationData.stations;
 
 	// Add a GeoJSON source containing place coordinates and information.
 	map.addSource('stations', {
@@ -1375,26 +1400,27 @@ Promise.all([$map, dataLoader.$stations])
 			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
 		}
 
+		const connectedIds = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
+		const connectedTrainlines = new Set();
+		for (const id of connectedIds) {
+			const index = stationData.idToIndex[id];
+			const props = stations.features[index].properties;
+			connectedTrainlines.add(props.trainline);
+		}
+		const logos = [];
+		for (const trainline of stationData.meta["ordered-trainlines"]) {
+			if (connectedTrainlines.has(trainline)) {
+				const url = stationData.meta.trainlines[trainline].logo;
+				logos.push(`<img src="data/images/${url}" alt="${trainline}" class="trainline" />`)
+			}
+		}
+
 		const description = `
-		<img src="${props.picto}" alt="logo" style="max-width: 30%;" />
-		<ul>
-		<li>exploitant: ${props.exploitant}</li>
-		<li>idf: ${props.idf != 0}</li>
-		<li>indice_lig: ${props.indice_lig}</li>
-		<li>mode: ${props.mode}</li>
-		<li>nom_gares: ${props.nom_gares}</li>
-		<li>nom_iv: ${props.nom_iv}</li>
-		<li>nom_so_gar: ${props.nom_so_gar}</li>
-		<li>nom_zda: ${props.nom_zda}</li>
-		<li>nom_zdc: ${props.nom_zdc}</li>
-		<li>principal: ${props.principal != 0}</li>
-		<li>res_com: ${props.res_com}</li>
-		<li>metro: ${props.termetro != "0"}</li>
-		<li>rer: ${props.terrer != "0"}</li>
-		<li>train: ${props.tertrain != "0"}</li>
-		<li>tramway: ${props.tertram != "0"}</li>
-		<li>val: ${props.terval != "0"}</li>
-		</ul>
+		<div class="station-popup">
+		<span class="title">${props.nom_gares}</span>
+		<span class="subtitle">${props.nom_so_gar ? props.nom_so_gar : ""}</span>
+		<div class="logos">${logos.join('')}</div>
+		</div>
 		`;
 
 		new mapboxgl.Popup()
