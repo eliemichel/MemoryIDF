@@ -1022,16 +1022,19 @@ function renderScorboardFoundEntry(item, stationData, communeData, isNew) {
 	element.innerHTML = `${logo}${item.name}`;
 
 	$map.then(map => {
+		const source = item.id[0] == 'STATION' ? 'found-stations' : 'found-communes';
+		const stateName = item.id[0] == 'STATION' ? 'active' : 'hover';
+
 		element.addEventListener('mouseenter', () => {
 			map.setFeatureState(
-				{ source: 'found-stations', id: item.id[1] },
-				{ active: true }
+				{ source, id: item.id[1] },
+				{ [stateName]: true }
 			);
 		});
 		element.addEventListener('mouseleave', () => {
 			map.setFeatureState(
-				{ source: 'found-stations', id: item.id[1] },
-				{ active: false }
+				{ source, id: item.id[1] },
+				{ [stateName]: false }
 			);
 		});
 		if (flyTarget !== null) {
@@ -1144,7 +1147,9 @@ const dataLoader = {
 	// the dataLoader.
 
 	// Names to be guessed
-	$memory: null,
+	// (Split to allow for finding both a station and a commune in a single query)
+	$stationMemory: null,
+	$communeMemory: null,
 
 	// Stores both stations and metadata + a precomputed id -> index mapping
 	$stationData: null,
@@ -1222,8 +1227,7 @@ class MemoryEngine {
 }
 
 // Add post-loading operations
-dataLoader.$memory = join(dataLoader.$stations, dataLoader.$communes,
-(stations, communes) => {
+dataLoader.$stationMemory = dataLoader.$stations.then(stations => {
 	const engine = new MemoryEngine();
 
 	stations.features.map((item, index) => {
@@ -1238,6 +1242,15 @@ dataLoader.$memory = join(dataLoader.$stations, dataLoader.$communes,
 		// nom + sous titre (possible de deviner mais bon courage):
 		engine.insert(props.nom_zdc, payload);
 	});
+
+	engine.freeze();
+
+	return engine;
+});
+
+// Add post-loading operations
+dataLoader.$communeMemory = dataLoader.$communes.then(communes => {
+	const engine = new MemoryEngine();
 
 	communes.features.map((item, index) => {
 		const props = item.properties;
@@ -1365,8 +1378,8 @@ join($dom, dataLoader.$stationData, dataLoader.$communes, (dom, stationData, com
 	});
 });
 
-const $gameplayReady = join($dom, dataLoader.$memory, dataLoader.$stationData, dataLoader.$communes,
-(dom, memory, stationData, communes) => {
+const $gameplayReady = join($dom, dataLoader.$stationMemory, dataLoader.$communeMemory, dataLoader.$stationData, dataLoader.$communes,
+(dom, stationMemory, communeMemory, stationData, communes) => {
 	const stations = stationData.stations;
 	// We can now add the search event handler
 	dom["search-form"].addEventListener('submit', () => {
@@ -1375,46 +1388,58 @@ const $gameplayReady = join($dom, dataLoader.$memory, dataLoader.$stationData, d
 
 		dispatch(dom, Action.StartLoading());
 
-		memory.search(query).then(result => {
-			if (result == null) {
+		const $allResults = Promise.all([
+			stationMemory.search(query),
+			communeMemory.search(query)
+		])
+
+		$allResults.then(allResults => {
+			let allNull = true;
+			let allDuplicates = true;
+			for (const result of allResults) {
+				if (result == null) continue;
+				allNull = false;
+				if (result.type == 'STATION') {
+
+					const props = stations.features[result.index].properties;
+					const item_id = ['STATION', props.id_gares];
+
+					const alreadyFound = state.cache.foundKeys[item_id];
+					if (!alreadyFound) {
+						allDuplicates = false;
+						const connected_ids = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
+
+						connected_ids.map(id => {
+
+							const index = stationData.idToIndex[id];
+							if (index === undefined) return; // happens when the statino has been removed because on an ignored train line
+							const props = stations.features[index].properties;
+							dispatch(dom, Action.AppendFoundStationItem({
+								id: ['STATION', props.id_gares],
+								name: props.nom_zdc,
+							}, stations.features[index]));
+
+						});
+					}
+				} else if (result.type == 'COMMUNE') {
+
+					const geoFeature = communes.features[result.index];
+					const item_id = ['COMMUNE', geoFeature.properties.code];
+
+					const alreadyFound = state.cache.foundKeys[item_id];
+					if (!alreadyFound) {
+						allDuplicates = false;
+						dispatch(dom, Action.AppendFoundCommuneItem(item_id, geoFeature));
+					}
+				}
+			}
+
+			if (allNull) {
 				dispatch(dom, Action.NotifyError());
-			} else if (result.type == 'STATION') {
-
-				const props = stations.features[result.index].properties;
-				const item_id = ['STATION', props.id_gares];
-
-				const alreadyFound = state.cache.foundKeys[item_id];
-				if (alreadyFound) {
-					dispatch(dom, Action.NotifyDuplicate());
-				} else {
-					const connected_ids = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
-
-					connected_ids.map(id => {
-
-						const index = stationData.idToIndex[id];
-						if (index === undefined) return; // happens when the statino has been removed because on an ignored train line
-						const props = stations.features[index].properties;
-						dispatch(dom, Action.AppendFoundStationItem({
-							id: ['STATION', props.id_gares],
-							name: props.nom_zdc,
-						}, stations.features[index]));
-
-					});
-
-					dispatch(dom, Action.NotifySuccess());
-				}
-			} else if (result.type == 'COMMUNE') {
-
-				const geoFeature = communes.features[result.index];
-				const item_id = ['COMMUNE', geoFeature.properties.code];
-
-				const alreadyFound = state.cache.foundKeys[item_id];
-				if (alreadyFound) {
-					dispatch(dom, Action.NotifyDuplicate());
-				} else {
-					dispatch(dom, Action.AppendFoundCommuneItem(item_id, geoFeature));
-					dispatch(dom, Action.NotifySuccess());
-				}
+			} else if (allDuplicates) {
+				dispatch(dom, Action.NotifyDuplicate());
+			} else {
+				dispatch(dom, Action.NotifySuccess());
 			}
 
 			dispatch(dom, Action.StopLoading());
@@ -1482,12 +1507,14 @@ const $map = new Promise((resolve, reject) => {
 	map.on('mousemove', 'found-communes', e => {
 		map.getCanvas().style.cursor = 'pointer';
 		if (state.hoveredCommuneId !== null) {
+			console.assert(state.hoveredCommuneId !== undefined);
 			map.setFeatureState(
 				{ source: 'found-communes', id: state.hoveredCommuneId },
 				{ hover: false }
 			);
 		}
 		state.hoveredCommuneId = e.features[0].id;
+		console.assert(state.hoveredCommuneId !== undefined);
 		map.setFeatureState(
 			{ source: 'found-communes', id: state.hoveredCommuneId },
 			{ hover: true }
@@ -1496,11 +1523,14 @@ const $map = new Promise((resolve, reject) => {
 
 	map.on('mouseleave', 'found-communes', () => {
 		map.getCanvas().style.cursor = '';
-		map.setFeatureState(
-			{ source: 'found-communes', id: state.hoveredCommuneId },
-			{ hover: false }
-		);
-		state.hoveredCommuneId = null;
+		if (state.hoveredCommuneId !== null) {
+			console.assert(state.hoveredCommuneId !== undefined);
+			map.setFeatureState(
+				{ source: 'found-communes', id: state.hoveredCommuneId },
+				{ hover: false }
+			);
+			state.hoveredCommuneId = null;
+		}
 	});
 
 	// When a click event occurs on a commune, open a popup at the
