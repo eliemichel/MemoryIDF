@@ -470,7 +470,7 @@
 					<li><span class="percentage" id="stat-communes">X</span> de communes trouvées</li>
 					<li><span class="percentage" id="stat-surface">X</span> de km² trouvés</li>
 					<li><span class="percentage" id="stat-inhabitants">X</span> d'habitants trouvés</li>
-					<li><span class="percentage" id="stat-forest">0.0</span> de parcs et forêts trouvés</li>
+					<!--<li><span class="percentage" id="stat-forest">0.0</span> de parcs et forêts trouvés</li>-->
 					<li><span class="percentage" id="stat-stations">X</span> de gares trouvées</li>
 					<ul id="count-stations-per-line">
 					</ul>
@@ -612,7 +612,12 @@ const Action = {
 			state.cache.totalCounts.stations += trainline['station-count'];
 		}
 
-		state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
+		state.cache.totalCounts.communes = stationData.meta.communes["total-communes"];
+		state.cache.totalCounts.inhabitants = stationData.meta.communes["total-inhabitants"];
+		state.cache.totalCounts.surface = stationData.meta.communes["total-surface"];
+
+		Action._updateStationStats(state);
+		Action._updateCommuneStats(state);
 		state.cache.orderedTrainlines = stationData.meta["ordered-trainlines"];
 		renderScoreboard(dom, state, 0);
 	},
@@ -701,8 +706,6 @@ const Action = {
 			...state.found
 		];
 		++state.cache.counts.stations;
-		++state.cache.counts.stationsPerLine[geoFeature.properties.trainline];
-		state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
 
 		// Update map data
 		state.cache.foundStationsGeojson.features.push({
@@ -714,6 +717,8 @@ const Action = {
 	},
 
 	_renderAfterNewStationItem: (dom, state) => {
+		Action._updateStationStats(state);
+
 		$map.then(map => {
 			map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
 		});
@@ -734,9 +739,41 @@ const Action = {
 		renderScoreboard(dom, state);
 	},
 
+	_updateStationStats: (state) => {
+		state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
+	},
+	_updateCommuneStats: (state) => {
+		state.cache.stats.communes = 100 * state.cache.counts.communes / state.cache.totalCounts.communes;
+		state.cache.stats.surface = 100 * state.cache.counts.surface / state.cache.totalCounts.surface;
+		state.cache.stats.inhabitants = 100 * state.cache.counts.inhabitants / state.cache.totalCounts.inhabitants;
+	},
+
+	AppendFoundCommuneItem: (item_id, commune) => (dom, state) => {
+		if (state.cache.foundKeys[item_id]) return false;
+		state.cache.foundKeys[item_id] = true;
+
+		state.found = [
+			{
+				id: item_id,
+				name: commune.nom // just for ease of debug, the id is the single source of truth
+			},
+			...state.found
+		];
+
+		state.cache.counts.communes += 1;
+		state.cache.counts.surface += commune.superficie;
+		state.cache.counts.inhabitants += commune.population;
+
+		Action._updateCommuneStats(state);
+
+		renderScoreboard(dom, state);
+
+		localStorage.setItem("savedState", JSON.stringify(state));
+	},
+
 	// This loads a brand new state and recomputes the cached values
 	// NB: This also has the effect of StopLoading after loading state
-	LoadState: (newState, stationData) => (dom, state) => {
+	LoadState: (newState, stationData, communes) => (dom, state) => {
 		const stations = stationData.stations;
 		state.found = newState.found;
 		state.showAnswers = newState.showAnswers !== undefined ? newState.showAnswers : true;
@@ -783,6 +820,10 @@ const Action = {
 		stations.features.map((entry, index) => {
 			stationIdToIndex[entry.properties.id_gares] = index;
 		});
+		const communeIdToIndex = {};
+		communes.features.map((entry, index) => {
+			communeIdToIndex[entry.properties.code] = index;
+		});
 
 		state.found.map(item => {
 			if (item.id[0] === 'STATION') {
@@ -795,9 +836,22 @@ const Action = {
 				});
 				++state.cache.counts.stations;
 				++state.cache.counts.stationsPerLine[geoFeature.properties.trainline];
-				state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
+			}
+
+			if (item.id[0] === 'COMMUNE') {
+				state.cache.foundKeys[item.id] = true;
+
+				const communeIndex = communeIdToIndex[item.id[1]];
+				const commune = communes.features[communeIndex].properties;
+
+				state.cache.counts.communes += 1;
+				state.cache.counts.surface += commune.superficie;
+				state.cache.counts.inhabitants += commune.population;
 			}
 		});
+
+		Action._updateStationStats(state);
+		Action._updateCommuneStats(state);
 
 		$map.then(map => {
 			const src = map.getSource('found-stations');
@@ -840,7 +894,7 @@ function renderScoreboard(dom, state, newIndex) {
 
 	dom["count-communes"].innerText = state.cache.counts.communes;
 	dom["count-surface"].innerText = state.cache.counts.surface.toFixed(1);
-	dom["count-inhabitants"].innerText = state.cache.counts.inhabitants.toFixed(1);
+	dom["count-inhabitants"].innerText = (state.cache.counts.inhabitants / 1000.0).toFixed(1);
 	dom["count-stations"].innerText = state.cache.counts.stations;
 
 	dom["btn-show-answers"].style.display = state.showAnswers ? "none" : "inline";
@@ -909,13 +963,19 @@ function renderScorboardFoundEntry(item, stationData, isNew) {
 	const className = isNew ? "new" : "";
 
 	var logo = "";
-	var center = [0, 0];
+	var center = null
 	if (item.id[0] == 'STATION' && stationData != null) {
 		const index = stationData.idToIndex[item.id[1]];
 		const feature = stationData.stations.features[index];
 		const props = feature.properties;
 		logo = `<img src="${props.logo}" class="logo" />`;
 		center = feature.geometry.coordinates.slice();
+	} else if (item.id[0] == 'COMMUNE') {
+		// TODO: center
+		//const index = stationData.idToIndex[item.id[1]];
+		//const feature = stationData.stations.features[index];
+		//center = feature.geometry.coordinates.slice();
+		logo = `<img src="data/images/commune.svg" class="logo" />`;
 	}
 
 	const element = document.createElement('li');
@@ -936,12 +996,14 @@ function renderScorboardFoundEntry(item, stationData, isNew) {
 				{ active: false }
 			);
 		});
-		element.addEventListener('click', () => {
-			map.flyTo({
-				center,
-				zoom: 13,
+		if (center != null) {
+			element.addEventListener('click', () => {
+				map.flyTo({
+					center,
+					zoom: 13,
+				});
 			});
-		});
+		}
 	});
 
 	return element;
@@ -1077,11 +1139,13 @@ class MemoryEngine {
 	insert(key, value) {
 		const nkey = this._normalizeKey(key);
 		this.data[nkey] = value;
+		return this;
 	}
 
 	// This is called after all insert and before all search
 	freeze() {
 		this.fuzzyset = FuzzySet(Object.keys(this.data));
+		return this;
 	}
 
 	search(query) {
@@ -1109,8 +1173,10 @@ class MemoryEngine {
 }
 
 // Add post-loading operations
-dataLoader.$memory = dataLoader.$stations.then(stations => {
+dataLoader.$memory = join(dataLoader.$stations, dataLoader.$communes,
+(stations, communes) => {
 	const engine = new MemoryEngine();
+
 	stations.features.map((item, index) => {
 		const props = item.properties;
 		const payload = {
@@ -1123,7 +1189,23 @@ dataLoader.$memory = dataLoader.$stations.then(stations => {
 		// nom + sous titre (possible de deviner mais bon courage):
 		engine.insert(props.nom_zdc, payload);
 	});
+
+	communes.features.map((item, index) => {
+		const props = item.properties;
+		const payload = {
+			type: 'COMMUNE',
+			index
+		};
+		engine.insert(props.nom, payload);
+		if (props.nom.startsWith("Paris") && props.nom.endsWith("Arrondissement")) {
+			const end = props.nom.length - "Arrondissement".length - 1;
+			engine.insert(props.nom.substr(0, end), payload);
+			engine.insert(props.nom.substr("Paris".length + 1), payload);
+		}
+	});
+
 	engine.freeze();
+
 	return engine;
 });
 
@@ -1158,7 +1240,7 @@ $dom.then(dom => {
 	});
 });
 
-join($dom, dataLoader.$stationData, (dom, stationData) => {
+join($dom, dataLoader.$stationData, dataLoader.$communes, (dom, stationData, communes) => {
 	const savedStateJson = localStorage.getItem("savedState");
 	if (savedStateJson !== null) {
 		let savedState;
@@ -1169,7 +1251,7 @@ join($dom, dataLoader.$stationData, (dom, stationData) => {
 			console.log(e);
 			return;
 		}
-		dispatch(dom, Action.LoadState(savedState, stationData));
+		dispatch(dom, Action.LoadState(savedState, stationData, communes));
 	}
 
 	dom["btn-export"].addEventListener('click', () => {
@@ -1187,7 +1269,7 @@ join($dom, dataLoader.$stationData, (dom, stationData) => {
 		dispatch(dom, Action.StartLoading());
 		importJsonFile()
 		.then(json => {
-			dispatch(dom, Action.LoadState(json, stationData));
+			dispatch(dom, Action.LoadState(json, stationData, communes));
 		});
 	});
 
@@ -1234,8 +1316,8 @@ join($dom, dataLoader.$stationData, (dom, stationData) => {
 	});
 });
 
-const $gameplayReady = join($dom, dataLoader.$memory, dataLoader.$stationData,
-(dom, memory, stationData) => {
+const $gameplayReady = join($dom, dataLoader.$memory, dataLoader.$stationData, dataLoader.$communes,
+(dom, memory, stationData, communes) => {
 	const stations = stationData.stations;
 	// We can now add the search event handler
 	dom["search-form"].addEventListener('submit', () => {
@@ -1247,32 +1329,42 @@ const $gameplayReady = join($dom, dataLoader.$memory, dataLoader.$stationData,
 		memory.search(query).then(result => {
 			if (result == null) {
 				dispatch(dom, Action.NotifyError());
-			} else {
-				if (result.type == 'STATION') {
+			} else if (result.type == 'STATION') {
 
-					const props = stations.features[result.index].properties;
-					const item_id = ['STATION', props.id_gares];
+				const props = stations.features[result.index].properties;
+				const item_id = ['STATION', props.id_gares];
 
-					const alreadyFound = state.cache.foundKeys[item_id];
-					if (alreadyFound) {
-						dispatch(dom, Action.NotifyDuplicate());
-					} else {
-						const connected_ids = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
+				const alreadyFound = state.cache.foundKeys[item_id];
+				if (alreadyFound) {
+					dispatch(dom, Action.NotifyDuplicate());
+				} else {
+					const connected_ids = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
 
-						connected_ids.map(id => {
+					connected_ids.map(id => {
 
-							const index = stationData.idToIndex[id];
-							if (index === undefined) return; // happens when the statino has been removed because on an ignored train line
-							const props = stations.features[index].properties;
-							dispatch(dom, Action.AppendFoundStationItem({
-								id: ['STATION', props.id_gares],
-								name: props.nom_zdc,
-							}, stations.features[index]));
+						const index = stationData.idToIndex[id];
+						if (index === undefined) return; // happens when the statino has been removed because on an ignored train line
+						const props = stations.features[index].properties;
+						dispatch(dom, Action.AppendFoundStationItem({
+							id: ['STATION', props.id_gares],
+							name: props.nom_zdc,
+						}, stations.features[index]));
 
-						});
+					});
 
-						dispatch(dom, Action.NotifySuccess());
-					}
+					dispatch(dom, Action.NotifySuccess());
+				}
+			} else if (result.type == 'COMMUNE') {
+
+				const props = communes.features[result.index].properties;
+				const item_id = ['COMMUNE', props.code];
+
+				const alreadyFound = state.cache.foundKeys[item_id];
+				if (alreadyFound) {
+					dispatch(dom, Action.NotifyDuplicate());
+				} else {
+					dispatch(dom, Action.AppendFoundCommuneItem(item_id, props));
+					dispatch(dom, Action.NotifySuccess());
 				}
 			}
 

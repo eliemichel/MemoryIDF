@@ -331,6 +331,7 @@ def generateMetadata(stations, reg, new_communes, from_memory_paris):
         },
         "ordered-trainlines": ordered_trainlines,
         "communes": {
+            "total-communes": len(new_communes["features"]),
             "total-inhabitants": total_inhabitants,
             "total-surface": total_surface,
         },
