@@ -552,6 +552,11 @@ const state = {
 			type: "FeatureCollection",
 			features: [],
 		},
+		// We accumulate here the commune we find
+		foundCommunesGeojson: {
+			type: "FeatureCollection",
+			features: [],
+		},
 	}
 };
 
@@ -748,23 +753,35 @@ const Action = {
 		state.cache.stats.inhabitants = 100 * state.cache.counts.inhabitants / state.cache.totalCounts.inhabitants;
 	},
 
-	AppendFoundCommuneItem: (item_id, commune) => (dom, state) => {
+	AppendFoundCommuneItem: (item_id, geoFeature) => (dom, state) => {
 		if (state.cache.foundKeys[item_id]) return false;
 		state.cache.foundKeys[item_id] = true;
 
 		state.found = [
 			{
 				id: item_id,
-				name: commune.nom // just for ease of debug, the id is the single source of truth
+				name: geoFeature.properties.nom // just for ease of debug, the id is the single source of truth
 			},
 			...state.found
 		];
 
 		state.cache.counts.communes += 1;
-		state.cache.counts.surface += commune.superficie;
-		state.cache.counts.inhabitants += commune.population;
+		state.cache.counts.surface += geoFeature.properties.superficie;
+		state.cache.counts.inhabitants += geoFeature.properties.population;
+
+		// Update map data
+		state.cache.foundCommunesGeojson.features.push({
+			...geoFeature,
+			id: item_id
+		});
 
 		Action._updateCommuneStats(state);
+
+		// Render
+
+		$map.then(map => {
+			map.getSource('found-communes').setData(state.cache.foundCommunesGeojson);
+		});
 
 		renderScoreboard(dom, state);
 
@@ -805,6 +822,10 @@ const Action = {
 				type: "FeatureCollection",
 				features: [],
 			},
+			foundCommunesGeojson: {
+				type: "FeatureCollection",
+				features: [],
+			},
 		};
 
 		// TODO: avoid duplication with other actions (e.g., InitializeStationCache)
@@ -836,17 +857,20 @@ const Action = {
 				});
 				++state.cache.counts.stations;
 				++state.cache.counts.stationsPerLine[geoFeature.properties.trainline];
-			}
-
-			if (item.id[0] === 'COMMUNE') {
+			} else if (item.id[0] === 'COMMUNE') {
 				state.cache.foundKeys[item.id] = true;
 
 				const communeIndex = communeIdToIndex[item.id[1]];
-				const commune = communes.features[communeIndex].properties;
+				const geoFeature = communes.features[communeIndex];
+
+				state.cache.foundCommunesGeojson.features.push({
+					...geoFeature,
+					id: item.id[1]
+				});
 
 				state.cache.counts.communes += 1;
-				state.cache.counts.surface += commune.superficie;
-				state.cache.counts.inhabitants += commune.population;
+				state.cache.counts.surface += geoFeature.properties.superficie;
+				state.cache.counts.inhabitants += geoFeature.properties.population;
 			}
 		});
 
@@ -854,10 +878,8 @@ const Action = {
 		Action._updateCommuneStats(state);
 
 		$map.then(map => {
-			const src = map.getSource('found-stations');
-			if (src) { // may not be loaded yet
-				src.setData(state.cache.foundStationsGeojson);
-			}
+			map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
+			map.getSource('found-communes').setData(state.cache.foundCommunesGeojson);
 		});
 
 
@@ -1356,14 +1378,14 @@ const $gameplayReady = join($dom, dataLoader.$memory, dataLoader.$stationData, d
 				}
 			} else if (result.type == 'COMMUNE') {
 
-				const props = communes.features[result.index].properties;
-				const item_id = ['COMMUNE', props.code];
+				const geoFeature = communes.features[result.index];
+				const item_id = ['COMMUNE', geoFeature.properties.code];
 
 				const alreadyFound = state.cache.foundKeys[item_id];
 				if (alreadyFound) {
 					dispatch(dom, Action.NotifyDuplicate());
 				} else {
-					dispatch(dom, Action.AppendFoundCommuneItem(item_id, props));
+					dispatch(dom, Action.AppendFoundCommuneItem(item_id, geoFeature));
 					dispatch(dom, Action.NotifySuccess());
 				}
 			}
@@ -1405,19 +1427,25 @@ const $map = new Promise((resolve, reject) => {
 	////////////////////////////////////
 	// Communes
 
-	map.addSource('communes', {
-		type: 'geojson',
-		data: null,
+	// Communes are not displayed prior to being found
+	//map.addSource('communes', {
+	//	type: 'geojson',
+	//	data: null,
+	//});
+
+	map.addSource('found-communes', {
+		'type': 'geojson',
+		'data': state.cache.foundCommunesGeojson,
 	});
 
 	map.addLayer({
-		id: 'pending-communes',
+		id: 'found-communes',
 		type: 'fill',
-		source: 'communes',
+		source: 'found-communes',
 		paint: {
 			"fill-color": "#d26e7a",
 			"fill-outline-color": "#990000",
-			"fill-opacity": 0.1,
+			"fill-opacity": 0.15,
 		}
 	});
 
@@ -1542,7 +1570,7 @@ join($map, dataLoader.$stations, (map, stations) => {
 });
 
 join($map, dataLoader.$communes, (map, communes) => {
-	map.getSource('communes').setData(communes);
+	//map.getSource('communes').setData(communes);
 });
 
 join($map, dataLoader.$stationData, (map, stationData) => {
