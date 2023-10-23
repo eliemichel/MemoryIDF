@@ -1183,13 +1183,23 @@ Promise.all([$dom, dataLoader.$stationData])
 					}
 				} else {
 					const index = stationData.idToIndex[stationId];
-					console.assert(index !== undefined);
-					const geoFeature = stationData.stations.features[index];
-					const item = {
-						id: ['STATION', stationId],
-						name: geoFeature.properties.nom_zdc,
-					};
-					newEntries.push([ item, geoFeature ]);
+					// FIXME: Code duplication here!
+					const props = stationData.stations.features[index].properties;
+					const connectedIds = stationData.meta['connected-stations'][props.id_gares] || [props.id_gares];
+
+					for (const id of connectedIds) {
+
+						const index = stationData.idToIndex[id];
+						if (index === undefined) return; // happens when the station has been removed because on an ignored train line
+						const geoFeature = stationData.stations.features[index];
+						const props = geoFeature.properties;
+						const item = {
+							id: ['STATION', props.id_gares],
+							name: props.nom_zdc,
+						};
+						newEntries.push([ item, geoFeature ]);
+
+					}
 				}
 
 			}
