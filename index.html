@@ -428,6 +428,7 @@
 					<div id="menu-container">
 						<button id="btn-export">Exporter la partie</button>
 						<button id="btn-import">Importer une partie</button>
+						<button id="btn-import-memory-paris">Importer depuis memory.pour.paris</button>
 						<button id="btn-toggle-answers">Masquer les réponses</button>
 						<button id="btn-about">À propos</button>
 					</div>
@@ -543,6 +544,7 @@ const $dom = $DOMContentLoaded.then(() => {
 		"menu-container",
 		"btn-export",
 		"btn-import",
+		"btn-import-memory-paris",
 		"btn-toggle-answers",
 		"btn-about",
 		"btn-show-answers",
@@ -650,8 +652,8 @@ const Action = {
 		}
 	},
 
-	AppendFoundStationItem: (item, geoFeature) => (dom, state) => {
-		if (state.cache.foundKeys[item.id]) return;
+	_appendStationItemWithoutRender: (item, geoFeature, state) => {
+		if (state.cache.foundKeys[item.id]) return false;
 		state.cache.foundKeys[item.id] = true;
 
 		state.found = [
@@ -661,18 +663,34 @@ const Action = {
 		++state.cache.counts.stations;
 		++state.cache.counts.stationsPerLine[geoFeature.properties.trainline];
 		state.cache.stats.stations = 100 * state.cache.counts.stations / state.cache.totalCounts.stations;
-		renderScoreboard(dom, state, 0);
 
-		// Update map
+		// Update map data
 		state.cache.foundStationsGeojson.features.push({
 			...geoFeature,
 			id: item.id[1]
 		});
+
+		return true;
+	},
+
+	_renderAfterNewStationItem: (dom, state) => {
 		$map.then(map => {
 			map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
 		});
 
 		localStorage.setItem("savedState", JSON.stringify(state));
+	},
+
+	AppendFoundStationItem: (item, geoFeature) => (dom, state) => {
+		if (!Action._appendStationItemWithoutRender(item, geoFeature, state)) return;
+		Action._renderAfterNewStationItem(dom, state);
+	},
+
+	AppendMultipleStationItems: (entries) => (dom, state) => {
+		for (const [item, geoFeature] of entries) {
+			Action._appendStationItemWithoutRender(item, geoFeature, state);
+		}
+		Action._renderAfterNewStationItem(dom, state);
 	},
 
 	// This loads a brand new state and recomputes the cached values
@@ -1119,8 +1137,39 @@ Promise.all([$dom, dataLoader.$stationData])
 
 		dispatch(dom, Action.StartLoading());
 		importJsonFile()
-		.then((json) => {
+		.then(json => {
 			dispatch(dom, Action.LoadState(json, stationData));
+		});
+	});
+
+	dom["btn-import-memory-paris"].addEventListener('click', () => {
+		dispatch(dom, Action.CloseMenu());
+
+		dispatch(dom, Action.StartLoading());
+		importJsonFile()
+		.then(memoryParisJson => {
+			const newEntries = [];
+			const convertFromMemoryParis = stationData.meta["from-memory-paris"];
+			for (const memoryParisIdx of memoryParisJson) {
+				const stationId = convertFromMemoryParis[memoryParisIdx];
+				if (stationId === undefined) {
+					if (String(memoryParisIdx)[0] == '1') {
+						console.warn(`Could not import index ${memoryParisIdx} from memory.pour.paris.`);
+					}
+				} else {
+					const index = stationData.idToIndex[stationId];
+					console.assert(index !== undefined);
+					const geoFeature = stationData.stations.features[index];
+					const item = {
+						id: ['STATION', stationId],
+						name: geoFeature.properties.nom_zdc,
+					};
+					newEntries.push([ item, geoFeature ]);
+				}
+
+			}
+
+			dispatch(dom, Action.AppendMultipleStationItems(newEntries));
 		});
 	});
 });
