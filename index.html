@@ -1,12 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta http-equiv="content-language" content="fr-fr" />
+	<meta name="description" content="Un jeu de devinette où l'on doit retrouver de mémoire le nom de toutes les gares d'Île-de-France." />
+	<link rel="canonical" href="https://eliemichel.github.io/MemoryIDF" />
+
+	<meta name="og:title" href="Memory pour le Grand Paris" />
+	<meta property="og:type" content="article" />
+	<meta property="og:article:author" content="Élie Michel" />
+	<meta property="og:article:published_time" content="2023-10-23T12:00:00+01:00 " />
+	<meta name="og:url" href="https://eliemichel.github.io/MemoryIDF" />
+	<meta name="og:description" href="Un jeu de devinette où l'on doit retrouver de mémoire le nom de toutes les gares d'Île-de-France." />
+	<meta name="og:image" href="images/preview.jpg" />
+
 	<title>Memory pour le Grand Paris</title>
 
-	<script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
-	<link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet" />
+	<script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+	<link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
 	<script src="fuzzyset.js"></script>
 
 	<style type="text/css">
@@ -342,6 +354,12 @@
 			vertical-align: sub;
 		}
 
+		#btn-show-answers {
+			line-height: 2em;
+			color: #49525b;
+			font-style: italic;
+		}
+
 		.percentage {
 			font-weight: bold;
 			font-size: 1.25em;
@@ -410,6 +428,7 @@
 					<div id="menu-container">
 						<button id="btn-export">Exporter la partie</button>
 						<button id="btn-import">Importer une partie</button>
+						<button id="btn-toggle-answers">Masquer les réponses</button>
 						<button id="btn-about">À propos</button>
 					</div>
 				</div>
@@ -429,6 +448,8 @@
 				<ul id="counts">
 					<li><span id="count-stations">X</span> gares</li>
 				</ul>
+
+				<a id="btn-show-answers" href="javascript:void(0);">Montrer les réponses</a>
 
 				<ul id="found">
 				</ul>
@@ -462,6 +483,7 @@ const state = {
 	// Temporary state that does not need to be serialized
 	loading: true,
 	showMenu: false,
+	showAnswers: true,
 	notifyingError: false,
 	notifyingDuplicate: false,
 	notifyingSuccess: false,
@@ -521,7 +543,9 @@ const $dom = $DOMContentLoaded.then(() => {
 		"menu-container",
 		"btn-export",
 		"btn-import",
+		"btn-toggle-answers",
 		"btn-about",
+		"btn-show-answers",
 	].reduce((acc, item) => {
 		acc[item] = document.getElementById(item);
 		return acc;
@@ -535,6 +559,10 @@ const $dom = $DOMContentLoaded.then(() => {
 // We implement this pattern in case we eventually need it, but as long as
 // there is nothing like undo/redo system we do not need multiple copies of the
 // state so everything can happen in place.
+//
+// There is a lot of code duplication here, it may be worth splitting the
+// controller from the render logic, to be able to call the common control
+// parts from multiple event handlers without triggering multiple re-renders
 const Action = {
 	InitializeStationCache: (stationData) => (dom, state) => {
 		state.cache.totalCounts.stations = 0;
@@ -559,12 +587,31 @@ const Action = {
 
 	ToggleMenu: () => (dom, state) => {
 		state.showMenu = !state.showMenu;
-		renderMenu(dom);
+		renderMenu(dom, state);
 	},
 
 	CloseMenu: () => (dom, state) => {
 		state.showMenu = false;
-		renderMenu(dom);
+		renderMenu(dom, state);
+	},
+
+	_setShowAnswer(dom, state, showAnswers) {
+		state.showAnswers = showAnswers;
+		$map.then(map => {
+			renderMap(map, state);
+		});
+		renderMenu(dom, state);
+		renderScoreboard(dom, state);
+
+		localStorage.setItem("savedState", JSON.stringify(state));
+	},
+
+	ToggleAnswers: () => (dom, state) => {
+		Action._setShowAnswer(dom, state, !state.showAnswers);
+	},
+
+	ShowAnswers: () => (dom, state) => {
+		Action._setShowAnswer(dom, state, true);
 	},
 
 	// Invoked when the player query does not match any entry
@@ -633,6 +680,7 @@ const Action = {
 	LoadState: (newState, stationData) => (dom, state) => {
 		const stations = stationData.stations;
 		state.found = newState.found;
+		state.showAnswers = newState.showAnswers !== undefined ? newState.showAnswers : true;
 		state.cache = {
 			counts: { // raw values
 				communes: 0,
@@ -699,10 +747,13 @@ const Action = {
 			}
 		});
 
-		renderScoreboard(dom, state);
 
 		state.loading = false;
 		renderSearchForm(dom, state);
+		renderScoreboard(dom, state);
+		$map.then(map => {
+			renderMap(map, state);
+		});
 
 		localStorage.setItem("savedState", JSON.stringify(state));
 	},
@@ -714,14 +765,22 @@ function dispatch(dom, action) {
 ///////////////////////////////////////////////////////////
 // Render functions (responsible for updating the DOM)
 
-function renderMenu(dom) {
+function renderMenu(dom, state) {
 	dom["menu-container"].setAttribute("class", state.showMenu ? "opened" : "");
+	dom["btn-toggle-answers"].innerText =
+		state.showAnswers
+		? "Masquer les réponses"
+		: "Montrer les réponses";
 }
 
 function renderScoreboard(dom, state, newIndex) {
 	dom["stat-stations"].innerText = state.cache.stats.stations.toFixed(1);
 
 	dom["count-stations"].innerText = state.cache.counts.stations;
+
+	dom["btn-show-answers"].style.display = state.showAnswers ? "none" : "inline";
+
+	dom["found"].style.display = state.showAnswers ? "block" : "none";
 
 	dataLoader.$stationData.then(stationData => {
 		dom["count-stations-per-line"].replaceChildren(...state.cache.orderedTrainlines.map((trainline_key, index) => {
@@ -848,6 +907,16 @@ function renderSearchForm(dom, state) {
 		state.notifyingDuplicate ? "Déjà trouvé !" :
 		state.notifyingSuccess ? "Bravo !" : "";
 	loader.style.visibility = state.loading ? "visible" : "hidden";
+}
+
+function renderMap(map, state) {
+	if (map.getLayer("found-stations-labels")) {
+		map.setLayoutProperty(
+			"found-stations-labels",
+			"visibility",
+			state.showAnswers ? "visible" : "none"
+		);
+	}
 }
 
 ///////////////////////////////////////////////////////////
@@ -1004,7 +1073,16 @@ $dom.then(dom => {
 		});
 	});
 	dom["btn-toggle-menu"].addEventListener('click', () => {
-		dispatch(dom, Action.ToggleMenu())
+		dispatch(dom, Action.ToggleMenu());
+	});
+
+	dom["btn-toggle-answers"].addEventListener('click', () => {
+		dispatch(dom, Action.ToggleAnswers());
+		dispatch(dom, Action.CloseMenu());
+	});
+
+	dom["btn-show-answers"].addEventListener('click', () => {
+		dispatch(dom, Action.ShowAnswers());
 	});
 
 	dom["btn-about"].addEventListener('click', () => {
@@ -1283,6 +1361,8 @@ Promise.all([$map, dataLoader.$stations])
 	map.on('mouseleave', 'found-stations', () => {
 		map.getCanvas().style.cursor = '';
 	});
+
+	renderMap(map, state);
 });
 	</script>
 }

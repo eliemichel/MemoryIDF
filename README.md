@@ -1,7 +1,11 @@
 Memory pour le Grand Paris
 ==========================
 
+![Screenshot from the game](images/screenshot.png)
+
 [**Jouer**](https://eliemichel.github.io/MemoryIDF) | [**Code Source**](https://github.com/eliemichel/MemoryIDF)
+
+*(English description below)*
 
 Inspiré par le [Memory pour Paris](https://memory.pour.paris) de [Benjamin TD](https://twitter.com/_benjamintd), lui-même inspiré par [Chris Arvin](https://carvin.github.io/sf-street-names/) pour San Fransisco, voici une version étendue à toute l'Île de France !
 
@@ -17,6 +21,13 @@ Crédits
  - [Chris Arvin](https://twitter.com/chrisarvinsf) pour l'inspiration de Benjamin.
  - [IDFM](https://data.iledefrance-mobilites.fr) pour ses données ouvertes.
  - Toutes celles et ceux qui ont fait des retours pour améliorer le jeu!
+
+What is this?
+-------------
+
+Inspired by the [Memory pour Paris](https://memory.pour.paris) from [Benjamin TD](https://twitter.com/_benjamintd), itself inspired by [Chris Arvin](https://carvin.github.io/sf-street-names/) and their San Fransisco game, here is an extended version where the whole Île-de-France (Paris metropolitan area) is available!
+
+A warm thank to them for the inspiration, please enjoy the game and feel free to provide feedback through [GitHub issues](https://github.com/eliemichel/MemoryIDF/issues) and to share around.
 
 Hacking
 -------
