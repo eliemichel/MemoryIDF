@@ -32,6 +32,13 @@ A warm thank to them for the inspiration, please enjoy the game and feel free to
 Hacking
 -------
 
+If you want to update data, you need to first get them:
+
+```
+python scripts\download_raw_data.py
+python scripts\preprocess_data.py
+```
+
 If you want to run this game locally, all you need is to serve a local server from this directory:
 
 ```
