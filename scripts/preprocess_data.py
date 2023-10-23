@@ -10,6 +10,7 @@ from urllib.request import urlretrieve
 def main():
     traces = loadData("traces-du-reseau-ferre-idf.geojson")
     stations = loadData("emplacement-des-gares-idf.geojson")
+    memory_paris = loadData("../memory-pour-paris.geojson")
 
     reg = buildRegistry(traces, stations)
     #reg.prettyPrint()
@@ -22,7 +23,9 @@ def main():
     new_traces = generateNewTraces(traces, reg)
     exportData(new_traces, "memory-pour-idf-trainline-traces.geojson")
 
-    metadata = generateMetadata(stations, reg)
+    from_memory_paris = generateConversionFromMemoryParis(memory_paris, new_stations)
+
+    metadata = generateMetadata(stations, reg, from_memory_paris)
     exportData(metadata, "memory-pour-idf-metadata.json")
 
 
@@ -31,7 +34,7 @@ def main():
 DATA_ROOT = Path(__file__).parent.parent.joinpath("data")
 
 def loadData(filename):
-    with open(DATA_ROOT.joinpath("raw", filename)) as f:
+    with open(DATA_ROOT.joinpath("raw", filename), encoding="utf-8") as f:
         return json.load(f)
 
 def exportData(data, filename):
@@ -187,7 +190,7 @@ def downloadImages(reg):
 
 #---------------------------------------------
 
-def generateMetadata(stations, reg):
+def generateMetadata(stations, reg, from_memory_paris):
     station_count_per_line = defaultdict(int)
     for station in stations['features']:
         props = station['properties']
@@ -310,6 +313,7 @@ def generateMetadata(stations, reg):
             for key, entry in reg.trainlines.items()
         },
         "ordered-trainlines": ordered_trainlines,
+        "from-memory-paris": from_memory_paris,
     }
 
 #---------------------------------------------
@@ -377,6 +381,30 @@ def generateNewTraces(traces, reg):
         return [props]
 
     return filterGeojsonProperties(traces, filterProperties)
+
+#---------------------------------------------
+
+def generateConversionFromMemoryParis(memory_paris, new_stations):
+    lut = {}
+    for feature in new_stations["features"]:
+        props = feature["properties"]
+        name = props["nom_zdc"]
+        id = props["id_gares"]
+        lut[name] = id
+
+    conversion_table = {}
+    for feature in memory_paris["features"]:
+        props = feature["properties"]
+        memory_paris_id = props["id"]
+        memory_paris_name = props["name"]
+        match = lut.get(memory_paris_name)
+        if match is None:
+            print(f"ERROR! Station not found: '{memory_paris_name}'")
+        else:
+            conversion_table[memory_paris_id] = match
+
+
+    return conversion_table
 
 #---------------------------------------------
 
