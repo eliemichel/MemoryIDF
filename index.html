@@ -446,7 +446,7 @@
 				<div id="search-form-container">
 					<form id="search-form" action="javascript:void(0);">
 						<div id="search-input-container">
-							<input id="search-input" type="text" name="guess" placeholder="Entrez le nom d'une gare" disabled />
+							<input id="search-input" type="text" name="guess" placeholder="Entrez le nom d'une gare ou commune" disabled />
 							<div id="search-loader"></div>
 							<div id="search-notification">Test</div>
 						</div>
@@ -618,7 +618,7 @@ const $dom = $DOMContentLoaded.then(() => {
 // controller from the render logic, to be able to call the common control
 // parts from multiple event handlers without triggering multiple re-renders
 const Action = {
-	InitializeStationCache: (stationData) => (dom, state) => {
+	_initializeTotalCounts: (stationData, state) => {
 		state.cache.totalCounts.stations = 0;
 		for (const [key, trainline] of Object.entries(stationData.meta.trainlines)) {
 			state.cache.totalCounts.stations += trainline['station-count'];
@@ -631,6 +631,10 @@ const Action = {
 		Action._updateStationStats(state);
 		Action._updateCommuneStats(state);
 		state.cache.orderedTrainlines = stationData.meta["ordered-trainlines"];
+	},
+
+	InitializeStationCache: (stationData) => (dom, state) => {
+		Action._initializeTotalCounts(stationData, state);
 		renderScoreboard(dom, state, 0);
 	},
 
@@ -882,8 +886,7 @@ const Action = {
 			}
 		});
 
-		Action._updateStationStats(state);
-		Action._updateCommuneStats(state);
+		Action._initializeTotalCounts(stationData, state);
 
 		$map.then(map => {
 			map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
@@ -1084,7 +1087,7 @@ function renderMap(map, state) {
 // Utility function to create and download a file
 function exportFile(filename, json) {
 	var element = document.createElement('a');
-	element.setAttribute('href', 'data:text/json;charset=utf-8,' + encodeURIComponent(text));
+	element.setAttribute('href', 'data:text/json;charset=utf-8,' + encodeURIComponent(json));
 	element.setAttribute('download', filename);
 
 	element.style.display = 'none';

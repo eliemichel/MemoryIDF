@@ -1,0 +1,251 @@
+{
+  "found": [
+    {
+      "id": [
+        "STATION",
+        357
+      ],
+      "name": "Houilles - Carrières-sur-Seine"
+    },
+    {
+      "id": [
+        "STATION",
+        1015
+      ],
+      "name": "Houilles - Carrières-sur-Seine"
+    },
+    {
+      "id": [
+        "STATION",
+        358
+      ],
+      "name": "Houilles - Carrières-sur-Seine"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        77470
+      ],
+      "name": "Tournan-en-Brie"
+    },
+    {
+      "id": [
+        "STATION",
+        857
+      ],
+      "name": "Tournan"
+    },
+    {
+      "id": [
+        "STATION",
+        967
+      ],
+      "name": "Tournan"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        77177
+      ],
+      "name": "Favières"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        77058
+      ],
+      "name": "Bussy-Saint-Georges"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        77111
+      ],
+      "name": "Chessy"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        78124
+      ],
+      "name": "Carrières-sur-Seine"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75119
+      ],
+      "name": "Paris 19e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75118
+      ],
+      "name": "Paris 18e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75117
+      ],
+      "name": "Paris 17e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75116
+      ],
+      "name": "Paris 16e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75115
+      ],
+      "name": "Paris 15e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75114
+      ],
+      "name": "Paris 14e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75113
+      ],
+      "name": "Paris 13e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75112
+      ],
+      "name": "Paris 12e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75111
+      ],
+      "name": "Paris 11e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75105
+      ],
+      "name": "Paris 5e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75104
+      ],
+      "name": "Paris 4e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75103
+      ],
+      "name": "Paris 3e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75102
+      ],
+      "name": "Paris 2e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75101
+      ],
+      "name": "Paris 1er Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75120
+      ],
+      "name": "Paris 20e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75110
+      ],
+      "name": "Paris 10e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75109
+      ],
+      "name": "Paris 9e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75108
+      ],
+      "name": "Paris 8e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75107
+      ],
+      "name": "Paris 7e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        75106
+      ],
+      "name": "Paris 6e Arrondissement"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        77468
+      ],
+      "name": "Torcy"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        78311
+      ],
+      "name": "Houilles"
+    },
+    {
+      "id": [
+        "STATION",
+        27
+      ],
+      "name": "Arts et Métiers"
+    },
+    {
+      "id": [
+        "STATION",
+        28
+      ],
+      "name": "Arts et Métiers"
+    }
+  ],
+  "loading": false,
+  "showMenu": false,
+  "showAnswers": true,
+  "notifyingError": false,
+  "notifyingDuplicate": false,
+  "notifyingSuccess": false,
+  "hoveredCommuneId": null,
+  "preclickedOnStation": false,
+  "cache": null
+}
