@@ -691,6 +691,7 @@ const Action = {
 			Action._appendStationItemWithoutRender(item, geoFeature, state);
 		}
 		Action._renderAfterNewStationItem(dom, state);
+		renderScoreboard(dom, state);
 	},
 
 	// This loads a brand new state and recomputes the cached values
@@ -1170,6 +1171,7 @@ Promise.all([$dom, dataLoader.$stationData])
 			}
 
 			dispatch(dom, Action.AppendMultipleStationItems(newEntries));
+			dispatch(dom, Action.StopLoading());
 		});
 	});
 });
