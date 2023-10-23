@@ -1,3 +1,7 @@
+"""
+This script is a bit messy, because it handles data that is a bit messy itself.
+"""
+
 from pathlib import Path
 import json
 from dataclasses import dataclass, field
@@ -10,6 +14,7 @@ from urllib.request import urlretrieve
 def main():
     traces = loadData("traces-du-reseau-ferre-idf.geojson")
     stations = loadData("emplacement-des-gares-idf.geojson")
+    communes = loadData("base-comparateur-de-territoires.geojson")
 
     reg = buildRegistry(traces, stations)
     #reg.prettyPrint()
@@ -22,9 +27,11 @@ def main():
     new_traces = generateNewTraces(traces, reg)
     exportData(new_traces, "memory-pour-idf-trainline-traces.geojson")
 
-    metadata = generateMetadata(stations, reg)
-    exportData(metadata, "memory-pour-idf-metadata.json")
+    new_communes = generateCommunes(communes)
+    exportData(new_communes, "memory-pour-idf-communes.geojson")
 
+    metadata = generateMetadata(stations, reg, new_communes)
+    exportData(metadata, "memory-pour-idf-metadata.json")
 
 #---------------------------------------------
 
@@ -58,6 +65,7 @@ StationKey = str
 
 @dataclass
 class Registry:
+    """Metadata extracted from datasets"""
     trainlines: Dict[LineKey, RegistryLineEntry] = field(default_factory=dict)
 
     connected_stations: Dict[StationKey, RegistryStationEntry] = field(default_factory=dict)
@@ -187,7 +195,7 @@ def downloadImages(reg):
 
 #---------------------------------------------
 
-def generateMetadata(stations, reg):
+def generateMetadata(stations, reg, new_communes):
     station_count_per_line = defaultdict(int)
     for station in stations['features']:
         props = station['properties']
@@ -294,6 +302,15 @@ def generateMetadata(stations, reg):
         "TER TER":     { "text-color": "white", "shape": "rounded-square" },
     }
 
+    total_inhabitants = 0
+    total_surface = 0
+    for feature in new_communes["features"]:
+        props = feature["properties"]
+        total_inhabitants += props["population"]
+        total_surface += props["superficie"]
+    print(f"Nombre total d'habitants: {total_inhabitants}")
+    print(f"Supercifie total (en km2): {total_surface}")
+
     return {
         "connected-stations": {
             id: connected.ids
@@ -310,6 +327,10 @@ def generateMetadata(stations, reg):
             for key, entry in reg.trainlines.items()
         },
         "ordered-trainlines": ordered_trainlines,
+        "communes": {
+            "total-inhabitants": total_inhabitants,
+            "total-surface": total_surface,
+        },
     }
 
 #---------------------------------------------
@@ -377,6 +398,19 @@ def generateNewTraces(traces, reg):
         return [props]
 
     return filterGeojsonProperties(traces, filterProperties)
+
+#---------------------------------------------
+
+def generateCommunes(communes):
+    def filterProperties(props):
+        return [{
+            "nom": props["libgeo"],
+            "code": props["codgeo"],
+            "population": props["p20_pop"],
+            "superficie": props["superf"], # en km2
+        }]
+
+    return filterGeojsonProperties(communes, filterProperties)
 
 #---------------------------------------------
 

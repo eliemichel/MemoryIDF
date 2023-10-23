@@ -442,7 +442,7 @@
 			<div id="stats">
 				<ul>
 					<li><span class="percentage" id="stat-communes">X</span> de communes trouvées</li>
-					<li><span class="percentage" id="stat-surface">X</span> d'hectares trouvés</li>
+					<li><span class="percentage" id="stat-surface">X</span> de km² trouvés</li>
 					<li><span class="percentage" id="stat-inhabitants">X</span> d'habitants trouvés</li>
 					<li><span class="percentage" id="stat-forest">0.0</span> de parcs et forêts trouvés</li>
 					<li><span class="percentage" id="stat-stations">X</span> de gares trouvées</li>
@@ -454,7 +454,7 @@
 			<div>
 				<ul id="counts">
 					<li><span id="count-stations">X</span> gares</li>
-					<li><span id="count-communes">X</span> communes (<span id="count-surface">X</span> ha, <span id="count-inhabitants">X</span> k habitants)</li>
+					<li><span id="count-communes">X</span> communes (<span id="count-surface">X</span> km², <span id="count-inhabitants">X</span> k habitants)</li>
 				</ul>
 
 				<a id="btn-show-answers" href="javascript:void(0);">Montrer les réponses</a>
@@ -500,7 +500,7 @@ const state = {
 	cache: {
 		counts: { // raw values
 			communes: 0,
-			surface: 0, // in hectare
+			surface: 0, // in km²
 			inhabitants: 0, // in thousands of people
 			stations: 0,
 			stationsPerLine: {}, // trainline_key => station count
@@ -513,7 +513,7 @@ const state = {
 		},
 		totalCounts: { // from data loader
 			communes: -1,
-			surface: -1, // in hectare
+			surface: -1, // in km²
 			inhabitants: -1, // in thousands of people
 			stations: -1,
 		},
@@ -698,7 +698,7 @@ const Action = {
 		state.cache = {
 			counts: { // raw values
 				communes: 0,
-				surface: 0, // in hectare
+				surface: 0, // in km²
 				inhabitants: 0, // in thousands of people
 				stations: 0,
 				stationsPerLine: {}, // trainline_key => station count
@@ -711,7 +711,7 @@ const Action = {
 			},
 			totalCounts: { // from data loader
 				communes: -1,
-				surface: -1, // in hectare
+				surface: -1, // in km²
 				inhabitants: -1, // in thousands of people
 				stations: -1,
 			},
@@ -990,6 +990,10 @@ const dataLoader = {
 		fetch('data/memory-pour-idf-stations.geojson')
 		.then(response => response.json()),
 
+	$communes:
+		fetch('data/memory-pour-idf-communes.geojson')
+		.then(response => response.json()),
+
 	$meta:
 		fetch('data/memory-pour-idf-metadata.json')
 		.then(response => response.json()),
@@ -1218,20 +1222,40 @@ const $map = new Promise((resolve, reject) => {
 
 		map.on('load', () => { resolve(map); });
 	}
-});
+})
+.then(map => {
 
-Promise.all([$map, dataLoader.$traces])
-.then(([map, traces]) => {
+	////////////////////////////////////
+	// Communes
 
-	// SPlit to force TER to be below other lines
+	map.addSource('communes', {
+		type: 'geojson',
+		data: null,
+	});
+
+	map.addLayer({
+		id: 'pending-communes',
+		type: 'fill',
+		source: 'communes',
+		paint: {
+			"fill-color": "#d26e7a",
+			"fill-outline-color": "#990000",
+			"fill-opacity": 0.1,
+		}
+	});
+
+	////////////////////////////////////
+	// Traces
+
+	// Split to force TER to be below other lines
 	map.addSource('traces-ter', {
 		type: 'geojson',
-		data: traces,
+		data: null,
 		filter: [ '==', [ 'get', 'trainline' ], 'TER TER' ]
 	});
 	map.addSource('traces-no-ter', {
 		type: 'geojson',
-		data: traces,
+		data: null,
 		filter: [ '!=', [ 'get', 'trainline' ], 'TER TER' ]
 	});
 
@@ -1253,15 +1277,14 @@ Promise.all([$map, dataLoader.$traces])
 			}
 		});
 	}
-});
 
-Promise.all([$map, dataLoader.$stations])
-.then(([map, stations]) => {
+	////////////////////////////////////
+	// Stations
 
 	// Add a GeoJSON source containing place coordinates and information.
 	map.addSource('stations', {
 		type: 'geojson',
-		data: stations
+		data: null
 	});
 
 	// Add a symbol layer showing all train stations before they are found
@@ -1383,7 +1406,26 @@ Promise.all([$map, dataLoader.$stations])
 	});
 
 	renderMap(map, state);
+
+	return map;
 });
+
+Promise.all([$map, dataLoader.$traces])
+.then(([map, traces]) => {
+	map.getSource('traces-ter').setData(traces);
+	map.getSource('traces-no-ter').setData(traces);
+});
+
+Promise.all([$map, dataLoader.$stations])
+.then(([map, stations]) => {
+	map.getSource('stations').setData(stations);
+});
+
+Promise.all([$map, dataLoader.$communes])
+.then(([map, communes]) => {
+	map.getSource('communes').setData(communes);
+});
+
 	</script>
 }
 
