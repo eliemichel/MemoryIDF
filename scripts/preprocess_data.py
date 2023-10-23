@@ -413,6 +413,7 @@ def generateCommunes(communes):
             "code": props["codgeo"],
             "population": props["p20_pop"],
             "superficie": props["superf"], # en km2
+            "center": json.loads(props["geo_point"]) if type(props["geo_point"]) == str else props["geo_point"],
         }]
 
     return filterGeojsonProperties(communes, filterProperties)

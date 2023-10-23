@@ -373,18 +373,23 @@
 			content: '%';
 		}
 
-		.station-popup {
+		.station-popup,
+		.commune-popup {
 			margin: 0.5em 0;
 		}
-		.station-popup .title {
+		.station-popup .title,
+		.commune-popup .name {
 			display: block;
 			font-weight: bold;
 			font-size: 1.3em;
 		}
-		.station-popup .subtitle {
+		.station-popup .subtitle,
+		.commune-popup .info {
 			display: block;
-			font-style: italic;
 			font-size: 1em;
+		}
+		.station-popup .subtitle {
+			font-style: italic;
 		}
 		.station-popup .logos {
 			display: flex;
@@ -522,6 +527,8 @@ const state = {
 	notifyingError: false,
 	notifyingDuplicate: false,
 	notifyingSuccess: false,
+	hoveredCommuneId: null,
+	preclickedOnStation: false,
 
 	// Values that can be recomputed at any time from the rest of the state
 	cache: {
@@ -794,6 +801,7 @@ const Action = {
 		const stations = stationData.stations;
 		state.found = newState.found;
 		state.showAnswers = newState.showAnswers !== undefined ? newState.showAnswers : true;
+		state.hoveredCommuneId = null;
 		state.cache = {
 			counts: { // raw values
 				communes: 0,
@@ -923,7 +931,7 @@ function renderScoreboard(dom, state, newIndex) {
 
 	dom["found"].style.display = state.showAnswers ? "block" : "none";
 
-	dataLoader.$stationData.then(stationData => {
+	join(dataLoader.$stationData, dataLoader.$communeData, (stationData, communeData) => {
 		dom["count-stations-per-line"].replaceChildren(...state.cache.orderedTrainlines.map((trainline_key, index) => {
 			const count = state.cache.counts.stationsPerLine[trainline_key];
 			return renderScorboardLineCounter(trainline_key, count, stationData);
@@ -931,7 +939,7 @@ function renderScoreboard(dom, state, newIndex) {
 
 		dom.found.replaceChildren(...state.found.map((item, index) => {
 			const isNew = index == newIndex;
-			return renderScorboardFoundEntry(item, stationData, isNew);
+			return renderScorboardFoundEntry(item, stationData, communeData, isNew);
 		}));
 	});
 }
@@ -981,22 +989,27 @@ function renderScorboardLineCounter(trainline_key, count, stationData) {
 	return element;
 }
 
-function renderScorboardFoundEntry(item, stationData, isNew) {
+function renderScorboardFoundEntry(item, stationData, communeData, isNew) {
 	const className = isNew ? "new" : "";
 
 	var logo = "";
-	var center = null
+	var flyTarget = null;
 	if (item.id[0] == 'STATION' && stationData != null) {
 		const index = stationData.idToIndex[item.id[1]];
 		const feature = stationData.stations.features[index];
 		const props = feature.properties;
+		flyTarget = {
+			center: feature.geometry.coordinates.slice(),
+			zoom: 13,
+		};
 		logo = `<img src="${props.logo}" class="logo" />`;
-		center = feature.geometry.coordinates.slice();
 	} else if (item.id[0] == 'COMMUNE') {
-		// TODO: center
-		//const index = stationData.idToIndex[item.id[1]];
-		//const feature = stationData.stations.features[index];
-		//center = feature.geometry.coordinates.slice();
+		const index = communeData.idToIndex[item.id[1]];
+		const commune = communeData.communes.features[index].properties;
+		flyTarget = {
+			center: [commune.center.lon, commune.center.lat],
+			zoom: 12,
+		};
 		logo = `<img src="data/images/commune.svg" class="logo" />`;
 	}
 
@@ -1018,12 +1031,9 @@ function renderScorboardFoundEntry(item, stationData, isNew) {
 				{ active: false }
 			);
 		});
-		if (center != null) {
+		if (flyTarget !== null) {
 			element.addEventListener('click', () => {
-				map.flyTo({
-					center,
-					zoom: 13,
-				});
+				map.flyTo(flyTarget);
 			});
 		}
 	});
@@ -1135,6 +1145,9 @@ const dataLoader = {
 
 	// Stores both stations and metadata + a precomputed id -> index mapping
 	$stationData: null,
+
+	// Stores both communes + a precomputed id -> index mapping
+	$communeData: null,
 };
 
 
@@ -1148,6 +1161,17 @@ dataLoader.$stationData = join(dataLoader.$stations, dataLoader.$meta, (stations
 		idToIndex,
 		stations,
 		meta,
+	}
+});
+
+dataLoader.$communeData = dataLoader.$communes.then(communes => {
+	const idToIndex = {};
+	communes.features.map((entry, index) => {
+		idToIndex[entry.properties.code] = index;
+	});
+	return {
+		idToIndex,
+		communes,
 	}
 });
 
@@ -1445,8 +1469,59 @@ const $map = new Promise((resolve, reject) => {
 		paint: {
 			"fill-color": "#d26e7a",
 			"fill-outline-color": "#990000",
-			"fill-opacity": 0.15,
+			"fill-opacity": ['case',
+				['boolean', ['feature-state', 'hover'], false],
+				0.5, 0.15
+			],
 		}
+	});
+
+	map.on('mousemove', 'found-communes', e => {
+		map.getCanvas().style.cursor = 'pointer';
+		if (state.hoveredCommuneId !== null) {
+			map.setFeatureState(
+				{ source: 'found-communes', id: state.hoveredCommuneId },
+				{ hover: false }
+			);
+		}
+		state.hoveredCommuneId = e.features[0].id;
+		map.setFeatureState(
+			{ source: 'found-communes', id: state.hoveredCommuneId },
+			{ hover: true }
+		);
+	});
+
+	map.on('mouseleave', 'found-communes', () => {
+		map.getCanvas().style.cursor = '';
+		map.setFeatureState(
+			{ source: 'found-communes', id: state.hoveredCommuneId },
+			{ hover: false }
+		);
+		state.hoveredCommuneId = null;
+	});
+
+	// When a click event occurs on a commune, open a popup at the
+	// location of the feature, with description HTML from its properties.
+	map.on('click', 'found-communes', (e) => {
+		// Hack to ensure that station pop-ups "take over" commune ones
+		if (state.preclickedOnStation) return;
+
+		const commune = e.features[0].properties;
+		const coordinates = JSON.parse(commune.center);
+		coordinates.lng = coordinates.lon;
+
+		const description = `
+		<div class="commune-popup">
+		<span class="name">${commune.nom}</span>
+		<span class="info">${commune.superficie} km²</span>
+		<span class="info">${commune.population} habitants</span>
+		</div>
+		`;
+
+		new mapboxgl.Popup()
+			.setLngLat(coordinates)
+			.setHTML(description)
+			.addTo(map);
 	});
 
 	////////////////////////////////////
@@ -1577,9 +1652,15 @@ join($map, dataLoader.$stationData, (map, stationData) => {
 	// Popups
 	const stations = stationData.stations;
 
+	// Hack to ensure that station pop-ups "take over" commune ones
+	map.on('preclick', 'found-stations', (e) => {
+		state.preclickedOnStation = true;
+	});
+
 	// When a click event occurs on a train station, open a popup at the
 	// location of the feature, with description HTML from its properties.
 	map.on('click', 'found-stations', (e) => {
+		state.preclickedOnStation = false;
 		// Copy coordinates array.
 		const coordinates = e.features[0].geometry.coordinates.slice();
 		const props = e.features[0].properties;
