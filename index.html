@@ -20,6 +20,7 @@
 	<script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
 	<link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
 	<script src="fuzzyset.js"></script>
+	<script src="join.js"></script>
 
 	<style type="text/css">
 		body {
@@ -467,6 +468,7 @@
 
 	<script>
 // NB: Variable starting with $ are promises.
+// And 'join' is a shorthand for Promise.all (see https://github.com/eliemichel/join.js)
 
 ///////////////////////////////////////////////////////////
 // Immutable configuration globals
@@ -943,9 +945,9 @@ function renderMap(map, state) {
 // Utils
 
 // Utility function to create and download a file
-function exportFile(filename, text) {
+function exportFile(filename, json) {
 	var element = document.createElement('a');
-	element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+	element.setAttribute('href', 'data:text/json;charset=utf-8,' + encodeURIComponent(text));
 	element.setAttribute('download', filename);
 
 	element.style.display = 'none';
@@ -1010,8 +1012,7 @@ const dataLoader = {
 
 
 // Just bundle stations and meta together
-dataLoader.$stationData = Promise.all([dataLoader.$stations, dataLoader.$meta])
-.then(([stations, meta]) => {
+dataLoader.$stationData = join(dataLoader.$stations, dataLoader.$meta, (stations, meta) => {
 	const idToIndex = {};
 	stations.features.map((entry, index) => {
 		idToIndex[entry.properties.id_gares] = index;
@@ -1114,8 +1115,7 @@ $dom.then(dom => {
 	});
 });
 
-Promise.all([$dom, dataLoader.$stationData])
-.then(([dom, stationData]) => {
+join($dom, dataLoader.$stationData, (dom, stationData) => {
 	const savedStateJson = localStorage.getItem("savedState");
 	if (savedStateJson !== null) {
 		let savedState;
@@ -1149,8 +1149,8 @@ Promise.all([$dom, dataLoader.$stationData])
 	});
 });
 
-const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$stationData])
-.then(([dom, memory, stationData]) => {
+const $gameplayReady = join($dom, dataLoader.$memory, dataLoader.$stationData,
+(dom, memory, stationData) => {
 	const stations = stationData.stations;
 	// We can now add the search event handler
 	dom["search-form"].addEventListener('submit', () => {
@@ -1410,19 +1410,16 @@ const $map = new Promise((resolve, reject) => {
 	return map;
 });
 
-Promise.all([$map, dataLoader.$traces])
-.then(([map, traces]) => {
+join($map, dataLoader.$traces, (map, traces) => {
 	map.getSource('traces-ter').setData(traces);
 	map.getSource('traces-no-ter').setData(traces);
 });
 
-Promise.all([$map, dataLoader.$stations])
-.then(([map, stations]) => {
+join($map, dataLoader.$stations, (map, stations) => {
 	map.getSource('stations').setData(stations);
 });
 
-Promise.all([$map, dataLoader.$communes])
-.then(([map, communes]) => {
+join($map, dataLoader.$communes, (map, communes) => {
 	map.getSource('communes').setData(communes);
 });
 
