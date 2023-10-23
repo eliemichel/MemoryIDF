@@ -781,9 +781,10 @@ const Action = {
 		state.cache.counts.inhabitants += geoFeature.properties.population;
 
 		// Update map data
+		console.assert(item_id[1] !== undefined);
 		state.cache.foundCommunesGeojson.features.push({
 			...geoFeature,
-			id: item_id
+			id: item_id[1]
 		});
 
 		Action._updateCommuneStats(state);
@@ -875,6 +876,7 @@ const Action = {
 				const communeIndex = communeIdToIndex[item.id[1]];
 				const geoFeature = communes.features[communeIndex];
 
+				console.assert(item.id[1] !== undefined);
 				state.cache.foundCommunesGeojson.features.push({
 					...geoFeature,
 					id: item.id[1]
@@ -1514,6 +1516,9 @@ const $map = new Promise((resolve, reject) => {
 			);
 		}
 		state.hoveredCommuneId = e.features[0].id;
+		if (state.hoveredCommuneId === undefined) {
+			console.log(e.features[0]);
+		}
 		console.assert(state.hoveredCommuneId !== undefined);
 		map.setFeatureState(
 			{ source: 'found-communes', id: state.hoveredCommuneId },
