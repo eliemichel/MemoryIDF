@@ -1,12 +1,24 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
 	<meta charset="utf-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta http-equiv="content-language" content="fr-fr" />
+	<meta name="description" content="Un jeu de devinette où l'on doit retrouver de mémoire le nom de toutes les gares d'Île-de-France." />
+	<link rel="canonical" href="https://eliemichel.github.io/MemoryIDF" />
+
+	<meta name="og:title" href="Memory pour le Grand Paris" />
+	<meta property="og:type" content="article" />
+	<meta property="og:article:author" content="Élie Michel" />
+	<meta property="og:article:published_time" content="2023-10-23T12:00:00+01:00 " />
+	<meta name="og:url" href="https://eliemichel.github.io/MemoryIDF" />
+	<meta name="og:description" href="Un jeu de devinette où l'on doit retrouver de mémoire le nom de toutes les gares d'Île-de-France." />
+	<meta name="og:image" href="images/preview.jpg" />
+
 	<title>Memory pour le Grand Paris</title>
 
-	<script src="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.js"></script>
-	<link href="https://api.mapbox.com/mapbox-gl-js/v2.9.1/mapbox-gl.css" rel="stylesheet" />
+	<script src="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js"></script>
+	<link href="https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css" rel="stylesheet" />
 	<script src="fuzzyset.js"></script>
 
 	<style type="text/css">
@@ -342,6 +354,12 @@
 			vertical-align: sub;
 		}
 
+		#btn-show-answers {
+			line-height: 2em;
+			color: #49525b;
+			font-style: italic;
+		}
+
 		.percentage {
 			font-weight: bold;
 			font-size: 1.25em;
@@ -362,21 +380,21 @@
 			}
 
 			#scoreboard {
-				left: calc((100vw - 30em) / 2);
+				position: relative;
+				margin: 0 auto;
 				width: 100%;
 				max-width: 30em;
-				height: 11.5em;
+				height: 11em;
 				padding-top: 0.4em;
 				overflow: hidden;
 				font-size: 0.9em;
 			}
 
 			#scoreboard > hr {
-				height: 2px;
-				margin: 0.5em 0;
+				display: none;
 			}
 
-			#count-stations-per-line {
+			#counts {
 				display: none;
 			}
 
@@ -395,7 +413,7 @@
 				<div id="search-form-container">
 					<form id="search-form" action="javascript:void(0);">
 						<div id="search-input-container">
-							<input id="search-input" type="text" name="guess" placeholder="Entrez le nom d'une commune ou gare" disabled />
+							<input id="search-input" type="text" name="guess" placeholder="Entrez le nom d'une gare" disabled />
 							<div id="search-loader"></div>
 							<div id="search-notification">Test</div>
 						</div>
@@ -410,6 +428,7 @@
 					<div id="menu-container">
 						<button id="btn-export">Exporter la partie</button>
 						<button id="btn-import">Importer une partie</button>
+						<button id="btn-toggle-answers">Masquer les réponses</button>
 						<button id="btn-about">À propos</button>
 					</div>
 				</div>
@@ -419,10 +438,6 @@
 		<div id="scoreboard">
 			<div id="stats">
 				<ul>
-					<li><span class="percentage" id="stat-communes">X</span> de communes trouvées</li>
-					<li><span class="percentage" id="stat-surface">X</span> d'hectares trouvés</li>
-					<li><span class="percentage" id="stat-inhabitants">X</span> d'habitants trouvés</li>
-					<li><span class="percentage" id="stat-forest">0.0</span> de parcs et forêts trouvés</li>
 					<li><span class="percentage" id="stat-stations">X</span> de gares trouvées</li>
 					<ul id="count-stations-per-line">
 					</ul>
@@ -432,8 +447,9 @@
 			<div>
 				<ul id="counts">
 					<li><span id="count-stations">X</span> gares</li>
-					<li><span id="count-communes">X</span> communes (<span id="count-surface">X</span> ha, <span id="count-inhabitants">X</span> k habitants)</li>
 				</ul>
+
+				<a id="btn-show-answers" href="javascript:void(0);">Montrer les réponses</a>
 
 				<ul id="found">
 				</ul>
@@ -467,6 +483,7 @@ const state = {
 	// Temporary state that does not need to be serialized
 	loading: true,
 	showMenu: false,
+	showAnswers: true,
 	notifyingError: false,
 	notifyingDuplicate: false,
 	notifyingSuccess: false,
@@ -519,20 +536,16 @@ const $dom = $DOMContentLoaded.then(() => {
 		"search-notification",
 		"scoreboard",
 		"found",
-		"stat-communes",
-		"stat-surface",
-		"stat-inhabitants",
 		"stat-stations",
-		"count-communes",
-		"count-surface",
-		"count-inhabitants",
 		"count-stations",
 		"count-stations-per-line",
 		"btn-toggle-menu",
 		"menu-container",
 		"btn-export",
 		"btn-import",
+		"btn-toggle-answers",
 		"btn-about",
+		"btn-show-answers",
 	].reduce((acc, item) => {
 		acc[item] = document.getElementById(item);
 		return acc;
@@ -546,6 +559,10 @@ const $dom = $DOMContentLoaded.then(() => {
 // We implement this pattern in case we eventually need it, but as long as
 // there is nothing like undo/redo system we do not need multiple copies of the
 // state so everything can happen in place.
+//
+// There is a lot of code duplication here, it may be worth splitting the
+// controller from the render logic, to be able to call the common control
+// parts from multiple event handlers without triggering multiple re-renders
 const Action = {
 	InitializeStationCache: (stationData) => (dom, state) => {
 		state.cache.totalCounts.stations = 0;
@@ -570,12 +587,31 @@ const Action = {
 
 	ToggleMenu: () => (dom, state) => {
 		state.showMenu = !state.showMenu;
-		renderMenu(dom);
+		renderMenu(dom, state);
 	},
 
 	CloseMenu: () => (dom, state) => {
 		state.showMenu = false;
-		renderMenu(dom);
+		renderMenu(dom, state);
+	},
+
+	_setShowAnswer(dom, state, showAnswers) {
+		state.showAnswers = showAnswers;
+		$map.then(map => {
+			renderMap(map, state);
+		});
+		renderMenu(dom, state);
+		renderScoreboard(dom, state);
+
+		localStorage.setItem("savedState", JSON.stringify(state));
+	},
+
+	ToggleAnswers: () => (dom, state) => {
+		Action._setShowAnswer(dom, state, !state.showAnswers);
+	},
+
+	ShowAnswers: () => (dom, state) => {
+		Action._setShowAnswer(dom, state, true);
 	},
 
 	// Invoked when the player query does not match any entry
@@ -644,6 +680,7 @@ const Action = {
 	LoadState: (newState, stationData) => (dom, state) => {
 		const stations = stationData.stations;
 		state.found = newState.found;
+		state.showAnswers = newState.showAnswers !== undefined ? newState.showAnswers : true;
 		state.cache = {
 			counts: { // raw values
 				communes: 0,
@@ -710,10 +747,13 @@ const Action = {
 			}
 		});
 
-		renderScoreboard(dom, state);
 
 		state.loading = false;
 		renderSearchForm(dom, state);
+		renderScoreboard(dom, state);
+		$map.then(map => {
+			renderMap(map, state);
+		});
 
 		localStorage.setItem("savedState", JSON.stringify(state));
 	},
@@ -725,20 +765,22 @@ function dispatch(dom, action) {
 ///////////////////////////////////////////////////////////
 // Render functions (responsible for updating the DOM)
 
-function renderMenu(dom) {
+function renderMenu(dom, state) {
 	dom["menu-container"].setAttribute("class", state.showMenu ? "opened" : "");
+	dom["btn-toggle-answers"].innerText =
+		state.showAnswers
+		? "Masquer les réponses"
+		: "Montrer les réponses";
 }
 
 function renderScoreboard(dom, state, newIndex) {
-	dom["stat-communes"].innerText = state.cache.stats.communes.toFixed(1);
-	dom["stat-surface"].innerText = state.cache.stats.surface.toFixed(1);
-	dom["stat-inhabitants"].innerText = state.cache.stats.inhabitants.toFixed(1);
 	dom["stat-stations"].innerText = state.cache.stats.stations.toFixed(1);
 
-	dom["count-communes"].innerText = state.cache.counts.communes;
-	dom["count-surface"].innerText = state.cache.counts.surface.toFixed(1);
-	dom["count-inhabitants"].innerText = state.cache.counts.inhabitants.toFixed(1);
 	dom["count-stations"].innerText = state.cache.counts.stations;
+
+	dom["btn-show-answers"].style.display = state.showAnswers ? "none" : "inline";
+
+	dom["found"].style.display = state.showAnswers ? "block" : "none";
 
 	dataLoader.$stationData.then(stationData => {
 		dom["count-stations-per-line"].replaceChildren(...state.cache.orderedTrainlines.map((trainline_key, index) => {
@@ -852,6 +894,9 @@ function renderSearchForm(dom, state) {
 		//input.selectionEnd = input.value.length;
 		input.focus();
 	}
+	if (state.notifyingSuccess) {
+		input.value = "";
+	}
 	form.setAttribute("class",
 		state.notifyingError ? "notify-error" :
 		state.notifyingDuplicate ? "notify-duplicate" :
@@ -862,6 +907,16 @@ function renderSearchForm(dom, state) {
 		state.notifyingDuplicate ? "Déjà trouvé !" :
 		state.notifyingSuccess ? "Bravo !" : "";
 	loader.style.visibility = state.loading ? "visible" : "hidden";
+}
+
+function renderMap(map, state) {
+	if (map.getLayer("found-stations-labels")) {
+		map.setLayoutProperty(
+			"found-stations-labels",
+			"visibility",
+			state.showAnswers ? "visible" : "none"
+		);
+	}
 }
 
 ///////////////////////////////////////////////////////////
@@ -964,7 +1019,6 @@ class MemoryEngine {
 	search(query) {
 		return new Promise((resolve, reject) => {
 			const nkey = this._normalizeKey(query);
-			console.log(nkey);
 
 			// naive baseline
 			//resolve(this.data[nkey]);
@@ -1019,11 +1073,20 @@ $dom.then(dom => {
 		});
 	});
 	dom["btn-toggle-menu"].addEventListener('click', () => {
-		dispatch(dom, Action.ToggleMenu())
+		dispatch(dom, Action.ToggleMenu());
+	});
+
+	dom["btn-toggle-answers"].addEventListener('click', () => {
+		dispatch(dom, Action.ToggleAnswers());
+		dispatch(dom, Action.CloseMenu());
+	});
+
+	dom["btn-show-answers"].addEventListener('click', () => {
+		dispatch(dom, Action.ShowAnswers());
 	});
 
 	dom["btn-about"].addEventListener('click', () => {
-		window.open("https://github.com/eliemichel/MemoryIDF/blob/main/about.md", '_blank');
+		window.open("https://github.com/eliemichel/MemoryIDF/blob/prod/about.md", '_blank');
 	});
 });
 
@@ -1090,6 +1153,7 @@ const $gameplayReady = Promise.all([$dom, dataLoader.$memory, dataLoader.$statio
 						connected_ids.map(id => {
 
 							const index = stationData.idToIndex[id];
+							if (index === undefined) return; // happens when the statino has been removed because on an ignored train line
 							const props = stations.features[index].properties;
 							dispatch(dom, Action.AppendFoundStationItem({
 								id: ['STATION', props.id_gares],
@@ -1139,76 +1203,36 @@ const $map = new Promise((resolve, reject) => {
 Promise.all([$map, dataLoader.$traces])
 .then(([map, traces]) => {
 
-	map.addSource('traces', {
+	// SPlit to force TER to be below other lines
+	map.addSource('traces-ter', {
 		type: 'geojson',
-		data: traces
+		data: traces,
+		filter: [ '==', [ 'get', 'trainline' ], 'TER TER' ]
+	});
+	map.addSource('traces-no-ter', {
+		type: 'geojson',
+		data: traces,
+		filter: [ '!=', [ 'get', 'trainline' ], 'TER TER' ]
 	});
 
 	// Add a symbol layer showing all train lines
-	map.addLayer({
-		id: 'line-train',
-		type: 'line',
-		source: 'traces',
-		paint: {
-			"line-color": ["get", "color"],
-			"line-width": 3,
-			//"line-offset": ["*", 3, ["interpolate",
-			//	['linear'],
-			//	0.0, ["get", "start-line-offset"],
-			//	1.0, ["get", "end-line-offset"],
-			//]],
-			"line-offset": ["*", 3, ["get", "line-offset"]],
-		}
-	});
-
-	// When a click event occurs on a train line, open a popup at the
-	// location of the feature, with description HTML from its properties.
-	map.on('click', 'line-train', (e) => {
-		// Copy coordinates array.
-		const coordinates = e.features[0].geometry.coordinates.slice();
-		const props = e.features[0].properties;
-
-		// Ensure that if the map is zoomed out such that multiple
-		// copies of the feature are visible, the popup appears
-		// over the copy being pointed to.
-		while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-			coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
-		}
-
-		console.log(e.features[0]);
-
-		const description = `
-		<img src="${props.logo}" alt="logo" style="max-width: 30%;" />
-		<ul>
-		<li>exploitant: ${props.exploitant}</li>
-		<li>idf: ${props.idf != 0}</li>
-		<li>indice_lig: ${props.indice_lig}</li>
-		<li>metro: ${props.metro != 0}</li>
-		<li>mode: ${props.mode}</li>
-		<li>rer: ${props.rer != 0}</li>
-		<li>res_com: ${props.res_com}</li>
-		<li>reseau: ${props.reseau}</li>
-		<li>train: ${props.train != 0}</li>
-		<li>tramway: ${props.tramway != 0}</li>
-		<li>(orly?)val: ${props.val != 0}</li>
-		</ul>
-		`;
-
-		new mapboxgl.Popup()
-			.setLngLat(e.lngLat)
-			.setHTML(description)
-			.addTo(map);
-	});
-
-	// Change the cursor to a pointer when the mouse is over the train line layer.
-	map.on('mouseenter', 'line-train', () => {
-		map.getCanvas().style.cursor = 'pointer';
-	});
-
-	// Change it back to a pointer when it leaves.
-	map.on('mouseleave', 'line-train', () => {
-		map.getCanvas().style.cursor = '';
-	});
+	for (const layer of ['ter', 'no-ter']) {
+		map.addLayer({
+			id: 'line-train-' + layer,
+			type: 'line',
+			source: 'traces-' + layer,
+			paint: {
+				"line-color": ["get", "color"],
+				"line-width": 3,
+				//"line-offset": ["*", 3, ["interpolate",
+				//	['linear'],
+				//	0.0, ["get", "start-line-offset"],
+				//	1.0, ["get", "end-line-offset"],
+				//]],
+				"line-offset": ["*", 3, ["get", "line-offset"]],
+			}
+		});
+	}
 });
 
 Promise.all([$map, dataLoader.$stations])
@@ -1292,9 +1316,6 @@ Promise.all([$map, dataLoader.$stations])
 		// Copy coordinates array.
 		const coordinates = e.features[0].geometry.coordinates.slice();
 		const props = e.features[0].properties;
-		console.log(props);
-		console.log("id");
-		console.log(e.features[0].id);
 
 		// Ensure that if the map is zoomed out such that multiple
 		// copies of the feature are visible, the popup appears
@@ -1340,6 +1361,8 @@ Promise.all([$map, dataLoader.$stations])
 	map.on('mouseleave', 'found-stations', () => {
 		map.getCanvas().style.cursor = '';
 	});
+
+	renderMap(map, state);
 });
 	</script>
 }
