@@ -380,21 +380,21 @@
 			}
 
 			#scoreboard {
-				position: relative;
-				margin: 0 auto;
+				left: calc((100vw - 30em) / 2);
 				width: 100%;
 				max-width: 30em;
-				height: 11em;
+				height: 11.5em;
 				padding-top: 0.4em;
 				overflow: hidden;
 				font-size: 0.9em;
 			}
 
 			#scoreboard > hr {
-				display: none;
+				height: 2px;
+				margin: 0.5em 0;
 			}
 
-			#counts {
+			#count-stations-per-line {
 				display: none;
 			}
 
@@ -438,6 +438,10 @@
 		<div id="scoreboard">
 			<div id="stats">
 				<ul>
+					<li><span class="percentage" id="stat-communes">X</span> de communes trouvées</li>
+					<li><span class="percentage" id="stat-surface">X</span> d'hectares trouvés</li>
+					<li><span class="percentage" id="stat-inhabitants">X</span> d'habitants trouvés</li>
+					<li><span class="percentage" id="stat-forest">0.0</span> de parcs et forêts trouvés</li>
 					<li><span class="percentage" id="stat-stations">X</span> de gares trouvées</li>
 					<ul id="count-stations-per-line">
 					</ul>
@@ -447,6 +451,7 @@
 			<div>
 				<ul id="counts">
 					<li><span id="count-stations">X</span> gares</li>
+					<li><span id="count-communes">X</span> communes (<span id="count-surface">X</span> ha, <span id="count-inhabitants">X</span> k habitants)</li>
 				</ul>
 
 				<a id="btn-show-answers" href="javascript:void(0);">Montrer les réponses</a>
@@ -536,7 +541,13 @@ const $dom = $DOMContentLoaded.then(() => {
 		"search-notification",
 		"scoreboard",
 		"found",
+		"stat-communes",
+		"stat-surface",
+		"stat-inhabitants",
 		"stat-stations",
+		"count-communes",
+		"count-surface",
+		"count-inhabitants",
 		"count-stations",
 		"count-stations-per-line",
 		"btn-toggle-menu",
@@ -774,8 +785,14 @@ function renderMenu(dom, state) {
 }
 
 function renderScoreboard(dom, state, newIndex) {
+	dom["stat-communes"].innerText = state.cache.stats.communes.toFixed(1);
+	dom["stat-surface"].innerText = state.cache.stats.surface.toFixed(1);
+	dom["stat-inhabitants"].innerText = state.cache.stats.inhabitants.toFixed(1);
 	dom["stat-stations"].innerText = state.cache.stats.stations.toFixed(1);
 
+	dom["count-communes"].innerText = state.cache.counts.communes;
+	dom["count-surface"].innerText = state.cache.counts.surface.toFixed(1);
+	dom["count-inhabitants"].innerText = state.cache.counts.inhabitants.toFixed(1);
 	dom["count-stations"].innerText = state.cache.counts.stations;
 
 	dom["btn-show-answers"].style.display = state.showAnswers ? "none" : "inline";
