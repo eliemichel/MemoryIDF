@@ -3,6 +3,167 @@
     {
       "id": [
         "STATION",
+        33
+      ],
+      "name": "Aubergenville Élisabethville"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        78015
+      ],
+      "name": "Andrésy"
+    },
+    {
+      "id": [
+        "STATION",
+        17
+      ],
+      "name": "Andrésy"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        95306
+      ],
+      "name": "Herblay-sur-Seine"
+    },
+    {
+      "id": [
+        "STATION",
+        346
+      ],
+      "name": "Herblay"
+    },
+    {
+      "id": [
+        "STATION",
+        398
+      ],
+      "name": "La Frette - Montigny"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        78126
+      ],
+      "name": "La Celle-Saint-Cloud"
+    },
+    {
+      "id": [
+        "STATION",
+        391
+      ],
+      "name": "La Celle-Saint-Cloud"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        92064
+      ],
+      "name": "Saint-Cloud"
+    },
+    {
+      "id": [
+        "STATION",
+        812
+      ],
+      "name": "Saint-Cloud"
+    },
+    {
+      "id": [
+        "STATION",
+        929
+      ],
+      "name": "Saint-Cloud"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        78224
+      ],
+      "name": "L'Étang-la-Ville"
+    },
+    {
+      "id": [
+        "STATION",
+        464
+      ],
+      "name": "L'Étang-la-Ville"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        78571
+      ],
+      "name": "Saint-Nom-la-Bretèche"
+    },
+    {
+      "id": [
+        "STATION",
+        885
+      ],
+      "name": "Versailles Château Rive Gauche"
+    },
+    {
+      "id": [
+        "STATION",
+        664
+      ],
+      "name": "Pont de l'Alma"
+    },
+    {
+      "id": [
+        "STATION",
+        141
+      ],
+      "name": "Champ de Mars Tour Eiffel"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        78396
+      ],
+      "name": "Le Mesnil-le-Roi"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        92078
+      ],
+      "name": "Villeneuve-la-Garenne"
+    },
+    {
+      "id": [
+        "COMMUNE",
+        91687
+      ],
+      "name": "Viry-Châtillon"
+    },
+    {
+      "id": [
+        "STATION",
+        917
+      ],
+      "name": "Viry-Châtillon"
+    },
+    {
+      "id": [
+        "STATION",
+        642
+      ],
+      "name": "Pierre et Marie Curie"
+    },
+    {
+      "id": [
+        "STATION",
+        478
+      ],
+      "name": "Louise Michel"
+    },
+    {
+      "id": [
+        "STATION",
         1045
       ],
       "name": "Joigny"

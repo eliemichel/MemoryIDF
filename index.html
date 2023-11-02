@@ -739,6 +739,8 @@ const Action = {
 			map.getSource('found-stations').setData(state.cache.foundStationsGeojson);
 		});
 
+		renderScoreboard(dom, state);
+
 		localStorage.setItem("savedState", JSON.stringify(state));
 	},
 
@@ -752,7 +754,6 @@ const Action = {
 			Action._appendStationItemWithoutRender(item, geoFeature, state);
 		}
 		Action._renderAfterNewStationItem(dom, state);
-		renderScoreboard(dom, state);
 	},
 
 	_updateStationStats: (state) => {
