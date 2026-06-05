@@ -53,7 +53,7 @@ License
 This project is shared under the terms of the simple MIT license:
 
 ```
-Copyright 2023 Élie Michel
+Copyright 2023-2026 Élie Michel
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software
 and associated documentation files (the “Software”), to deal in the Software without

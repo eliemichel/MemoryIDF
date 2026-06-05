@@ -174,7 +174,11 @@ def buildRegistry(traces, stations):
 #---------------------------------------------
 
 image_overrides = {
-    'TER TER': "TER_TER.svg",
+    'TER TER': "TER_TER.svg", # non fourni
+    'NAVETTE ORL': "NAVETTE ORL.svg", # non fourni (à compléter, image vide pour le moment)
+    'NAVETTE CDG': "NAVETTE CDG.svg", # non fourni (à compléter, image vide pour le moment)
+    'NAVETTE FUN': "NAVETTE FUN.svg", # non fourni (à compléter, image vide pour le moment)
+    'T 14': "T 14.svg", # fourni comme .png alors que la donnée est .svg (et j'ai manuellement retiré le fond blanc du svg)
 }
 
 def downloadImages(reg):
@@ -235,6 +239,7 @@ def generateMetadata(stations, reg, new_communes, from_memory_paris):
         "TRAIN P",
         "TRAIN R",
         "TRAIN U",
+        "TRAIN V",
         "T 1",
         "T 2",
         "T 3A",
@@ -247,12 +252,15 @@ def generateMetadata(stations, reg, new_communes, from_memory_paris):
         "T 9",
         "T 10",
         "T 11",
+        "T 12",
         "T 13",
-        #"NAVETTE CDG",
-        #"NAVETTE FUN",
-        #"NAVETTE ORL",
+        "T 14",
+        "NAVETTE CDG",
+        "NAVETTE FUN",
+        "NAVETTE ORL",
         #"TER GL",
         "TER TER",
+        "CABLE 1",
     ]
 
     trainline_logo_style = {
@@ -285,6 +293,7 @@ def generateMetadata(stations, reg, new_communes, from_memory_paris):
         "TRAIN P":     { "text-color": "black", "shape": "rounded-square" },
         "TRAIN R":     { "text-color": "black", "shape": "rounded-square" },
         "TRAIN U":     { "text-color": "white", "shape": "rounded-square" },
+        "TRAIN V":     { "text-color": "white", "shape": "rounded-square" },
         "T 1":         { "text-color": "black", "shape": "square" },
         "T 2":         { "text-color": "black", "shape": "square" },
         "T 3A":        { "text-color": "black", "shape": "square" },
@@ -297,12 +306,15 @@ def generateMetadata(stations, reg, new_communes, from_memory_paris):
         "T 9":         { "text-color": "black", "shape": "square" },
         "T 10":        { "text-color": "black", "shape": "square" },
         "T 11":        { "text-color": "black", "shape": "square" },
+        "T 12":        { "text-color": "black", "shape": "square" },
         "T 13":        { "text-color": "black", "shape": "square" },
+        "T 14":        { "text-color": "black", "shape": "square" },
         "NAVETTE CDG": { "text-color": "white", "shape": "square" },
         "NAVETTE FUN": { "text-color": "white", "shape": "square" },
         "NAVETTE ORL": { "text-color": "white", "shape": "square" },
-        "TER GL":      { "text-color": "white", "shape": "square" },
+        #"TER GL":      { "text-color": "white", "shape": "square" },
         "TER TER":     { "text-color": "white", "shape": "rounded-square" },
+        "CABLE 1":     { "text-color": "black", "shape": "square" },
     }
 
     total_inhabitants = 0
@@ -313,6 +325,8 @@ def generateMetadata(stations, reg, new_communes, from_memory_paris):
         total_surface += props["superficie"]
     print(f"Nombre total d'habitants: {total_inhabitants}")
     print(f"Supercifie total (en km2): {total_surface}")
+
+    assert(set(ordered_trainlines) == set(trainline_logo_style.keys()))
 
     return {
         "connected-stations": {
@@ -365,6 +379,8 @@ def generateNewStations(stations, reg):
         #if props["mode"] == 'TER' or key[0] in {'TER', 'NAVETTE'}:
         if key[0] == 'NAVETTE':
             return []
+        if key[0] == 'TRAM':
+            key = ('TRAMWAY', key[1])
 
         meta = reg.trainlines.get(key)
         assert(meta is not None)
@@ -409,7 +425,7 @@ def generateNewTraces(traces, reg):
 def generateCommunes(communes):
     def filterProperties(props):
         return [{
-            "nom": props["libgeo"],
+            "nom": props["nom_officiel_commune_arrondissement_municipal"],
             "code": props["codgeo"],
             "population": props["p20_pop"],
             "superficie": props["superf"], # en km2
@@ -435,7 +451,7 @@ def generateConversionFromMemoryParis(memory_paris, new_stations):
         memory_paris_name = props["name"]
         match = lut.get(memory_paris_name)
         if match is None:
-            print(f"ERROR! Station not found: '{memory_paris_name}'")
+            print(f"WARNING! Station non trouvée: '{memory_paris_name}'. Elle ne sera pas importée depuis Memory pour Paris.")
         else:
             conversion_table[memory_paris_id] = match
 
