@@ -35,6 +35,7 @@ def downloadDataset(url, local_file):
     target_path = RAW_DATA_ROOT.joinpath(local_file)
     if not target_path.exists():
         print(f"Downloading '{url}' to '{target_path}'...")
+        target_path.parent.mkdir(parents=True, exist_ok=True)
         urlretrieve(url, target_path)
 
 #---------------------------------------------

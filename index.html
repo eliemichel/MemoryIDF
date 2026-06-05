@@ -864,6 +864,10 @@ const Action = {
 			if (item.id[0] === 'STATION') {
 				state.cache.foundKeys[item.id] = true;
 				const stationIndex = stationIdToIndex[item.id[1]];
+				if (stationIndex === undefined) {
+					console.warn(`Skipping station '${item.id[1]}' from saved state: no longer exists in current data`);
+					return;
+				}
 				const geoFeature = stations.features[stationIndex];
 				state.cache.foundStationsGeojson.features.push({
 					...geoFeature,
@@ -875,6 +879,10 @@ const Action = {
 				state.cache.foundKeys[item.id] = true;
 
 				const communeIndex = communeIdToIndex[item.id[1]];
+				if (communeIndex === undefined) {
+					console.warn(`Skipping commune '${item.id[1]}' from saved state: no longer exists in current data`);
+					return;
+				}
 				const geoFeature = communes.features[communeIndex];
 
 				console.assert(item.id[1] !== undefined);
