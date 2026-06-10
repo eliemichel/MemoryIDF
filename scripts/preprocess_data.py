@@ -155,7 +155,7 @@ def buildRegistry(traces, stations):
         props = station['properties']
         trainline_key = Registry.makeKeyFromStationProps(props)
 
-        id = props['id_gares']
+        id = fixDuplicateGareId(props)
         name = props['nom_zdc']
         entry = reg.connected_stations.get(name, RegistryStationEntry())
         entry.ids.append(id)
@@ -370,10 +370,26 @@ def filterGeojsonProperties(geojson, filterProperties):
 
 #---------------------------------------------
 
+def fixDuplicateGareId(props):
+    # There are 3 cases of id collision
+    if (
+        #(props["nom_gares"] == "Saint-Cyr" and props["tertram"] == "TRAM 13")
+        #or (props["nom_gares"] == "Montreuil - Hôpital" and props["res_com"] == "METRO 11")
+        #or (props["nom_gares"] == "Esbly" and props["tertrain"] == "TRAIN P")
+        (props["nom_gares"] == "Mairie d'Aubervilliers" and props["res_com"] == "METRO 12")
+        or (props["nom_gares"] == "Villejuif - Gustave Roussy" and props["res_com"] == "METRO 14")
+        or (props["nom_gares"] == "Esbly" and props["res_com"] == "TRAM 14")
+    ):
+        return props['id_gares'] + 9000000
+    else:
+        return props['id_gares']
+
+#---------------------------------------------
+
 def generateNewStations(stations, reg):
     def filterEntry(props):
         return props["mode"] != 'TER'
-
+    
     def filterProperties(props):
         key = Registry.makeKeyFromStationProps(props)
         #if props["mode"] == 'TER' or key[0] in {'TER', 'NAVETTE'}:
@@ -388,6 +404,8 @@ def generateNewStations(stations, reg):
         props['color'] = '#' + meta.color
         props['logo'] = "data/images/" + meta.logo_filename
         props['trainline'] = Registry.formatKey(key)
+
+        props['id_gares'] = fixDuplicateGareId(props)
         return [props]
 
     return filterGeojsonProperties(stations, filterProperties)
