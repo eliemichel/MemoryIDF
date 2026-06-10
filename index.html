@@ -1173,6 +1173,11 @@ const dataLoader = {
 dataLoader.$stationData = join(dataLoader.$stations, dataLoader.$meta, (stations, meta) => {
 	const idToIndex = {};
 	stations.features.map((entry, index) => {
+		if (idToIndex[entry.properties.id_gares] !== undefined) {
+			const prevStationProps = stations.features[idToIndex[entry.properties.id_gares]].properties;
+			const newStationProps = entry.properties;
+			console.warn(`Duplicate station ID found: ${entry.properties.id_gares}`, prevStationProps, newStationProps);
+		}
 		idToIndex[entry.properties.id_gares] = index;
 	});
 	return {
@@ -1185,6 +1190,11 @@ dataLoader.$stationData = join(dataLoader.$stations, dataLoader.$meta, (stations
 dataLoader.$communeData = dataLoader.$communes.then(communes => {
 	const idToIndex = {};
 	communes.features.map((entry, index) => {
+		if (idToIndex[entry.properties.code] !== undefined) {
+			const prevCommuneProps = communes.features[idToIndex[entry.properties.code]].properties;
+			const newCommuneProps = entry.properties;
+			console.warn(`Duplicate commune ID found: ${entry.properties.code}`, prevCommuneProps, newCommuneProps);
+		}
 		idToIndex[entry.properties.code] = index;
 	});
 	return {
